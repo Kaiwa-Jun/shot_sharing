@@ -1,0 +1,76 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  instagramUrl String?
+  twitterUrl   String?
+  posts        Post[]
+  likes        Like[]    @relation("userLikes")
+  comments     Comment[]
+  followers    Follow[]  @relation("followedBy")
+  followings   Follow[]  @relation("follows")
+}
+
+model Post {
+  id           String    @id @default(uuid())
+  userId       String
+  imageUrl     String
+  shutterSpeed String?
+  iso          Int?
+  aperture     Float?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime  @default(now())
+  User         User      @relation(fields: [userId], references: [id])
+  likes        Like[]
+  comments     Comment[]
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  User      User     @relation("userLikes", fields: [userId], references: [id])
+  Post      Post     @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follows", fields: [followerId], references: [id])
+  following   User     @relation("followedBy", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  content   String
+  userId    String
+  postId    String
+  parentId  String?
+  createdAt DateTime  @default(now())
+  User      User      @relation(fields: [userId], references: [id])
+  Post      Post      @relation(fields: [postId], references: [id])
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+}
