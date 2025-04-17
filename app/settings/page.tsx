@@ -1,8 +1,19 @@
 "use client";
 
-import { ArrowLeft, MapPin, Bell, HelpCircle, Info, LogOut, ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Bell,
+  HelpCircle,
+  Info,
+  LogOut,
+  ChevronRight,
+} from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useSession } from "@/app/auth/session-provider";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const SETTINGS_ITEMS = [
   {
@@ -36,6 +47,20 @@ const SETTINGS_ITEMS = [
 ];
 
 export default function SettingsPage() {
+  const { authUser, dbUser, signOut } = useSession();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      toast.success("ログアウトしました");
+      router.push("/");
+    } catch (error) {
+      console.error("ログアウトエラー:", error);
+      toast.error("ログアウトに失敗しました");
+    }
+  };
+
   return (
     <div className="container max-w-2xl mx-auto py-6">
       <div className="flex items-center gap-4 mb-6">
@@ -44,8 +69,12 @@ export default function SettingsPage() {
         </Link>
         <div className="flex items-center gap-3">
           <Avatar>
-            <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=faces" />
-            <AvatarFallback>JD</AvatarFallback>
+            <AvatarImage
+              src={dbUser?.avatarUrl || authUser?.user_metadata?.avatar_url}
+            />
+            <AvatarFallback>
+              {(dbUser?.name?.[0] || authUser?.email?.[0] || "U").toUpperCase()}
+            </AvatarFallback>
           </Avatar>
           <h1 className="text-xl font-semibold">設定</h1>
         </div>
@@ -55,11 +84,7 @@ export default function SettingsPage() {
         {SETTINGS_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
-            <Link
-              key={item.id}
-              href={item.href}
-              className="block w-full"
-            >
+            <Link key={item.id} href={item.href} className="block w-full">
               <div className="flex items-center justify-between p-4 hover:bg-accent rounded-lg transition-colors">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -79,7 +104,10 @@ export default function SettingsPage() {
         })}
 
         <div className="pt-6 border-t">
-          <button className="w-full flex items-center gap-4 p-4 text-destructive hover:bg-accent rounded-lg transition-colors">
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-4 p-4 text-destructive hover:bg-accent rounded-lg transition-colors"
+          >
             <LogOut className="h-5 w-5" />
             <span className="font-medium">ログアウト</span>
           </button>

@@ -1,7 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { Camera, MapPin, Calendar, Instagram, Twitter, Link as LinkIcon, Settings } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  Camera,
+  MapPin,
+  Calendar,
+  Instagram,
+  Twitter,
+  Link as LinkIcon,
+  Settings,
+  Loader2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/post-card";
@@ -10,6 +19,8 @@ import { ProfileEditDialog } from "@/components/profile-edit-dialog";
 import { SocialLinkDialog } from "@/components/social-link-dialog";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "@/app/auth/session-provider";
+import { useRouter } from "next/navigation";
 
 const TABS = [
   { id: "posts", label: "投稿" },
@@ -18,47 +29,37 @@ const TABS = [
   { id: "likes", label: "いいね" },
 ];
 
-const LIKED_POSTS = generateMockPosts(3, 10).map(post => ({
+// 一時的にモック投稿を使用 - 将来的にはAPIから取得
+const LIKED_POSTS = generateMockPosts(3, 10).map((post) => ({
   ...post,
-  isLiked: true
+  isLiked: true,
 }));
-
-const DEFAULT_PROFILE = {
-  name: "じゅん@Webエンジニア",
-  username: "crew_runteq38",
-  bio: "仙台でwebエンジニアしてます—",
-  location: "仙台, 日本",
-  twitter: "",
-  instagram: "",
-  url: "",
-};
 
 const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { 
-    opacity: 1, 
+  show: {
+    opacity: 1,
     y: 0,
     transition: {
       type: "spring",
       stiffness: 300,
-      damping: 30
-    }
-  }
+      damping: 30,
+    },
+  },
 };
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("posts");
-  const [profile, setProfile] = useState(DEFAULT_PROFILE);
   const [socialDialog, setSocialDialog] = useState<{
     open: boolean;
     type: "instagram" | "twitter" | null;
@@ -66,26 +67,64 @@ export default function ProfilePage() {
     open: false,
     type: null,
   });
-  
+
+  // セッションからユーザー情報を取得
+  const { authUser, dbUser, isLoading, updateUserProfile } = useSession();
+  const router = useRouter();
+
+  // 未ログイン時はログインページにリダイレクト
+  useEffect(() => {
+    if (!isLoading && !authUser) {
+      router.push("/");
+    }
+  }, [isLoading, authUser, router]);
+
+  // 一時的にモック投稿を使用 - 将来的にはAPIから取得
   const posts = generateMockPosts(3, 0);
 
-  const handleProfileSave = (updatedProfile: typeof DEFAULT_PROFILE) => {
-    setProfile(updatedProfile);
-  };
+  const handleProfileSave = async (updatedProfile: any) => {
+    if (!dbUser) return;
 
-  const handleSocialSave = (username: string) => {
-    if (socialDialog.type) {
-      setProfile(prev => ({
-        ...prev,
-        [socialDialog.type]: username
-      }));
+    try {
+      // Prismaデータベースとユーザープロフィールを更新
+      await updateUserProfile({
+        name: updatedProfile.name,
+        bio: updatedProfile.bio,
+        // SNSリンクはSocialLinkDialogで個別に処理
+      });
+    } catch (error) {
+      console.error("プロフィール更新エラー:", error);
     }
   };
+
+  const handleSocialSave = async (username: string) => {
+    if (!dbUser || !socialDialog.type) return;
+
+    try {
+      const updateData =
+        socialDialog.type === "instagram"
+          ? { instagramUrl: username }
+          : { twitterUrl: username };
+
+      await updateUserProfile(updateData);
+    } catch (error) {
+      console.error(`${socialDialog.type}更新エラー:`, error);
+    }
+  };
+
+  // ローディング中または未ログイン時
+  if (isLoading || !authUser) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
       {/* Cover Image */}
-      <motion.div 
+      <motion.div
         className="relative h-48 bg-gradient-to-r from-blue-400 to-blue-600"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -98,7 +137,7 @@ export default function ProfilePage() {
 
       {/* Profile Header */}
       <div className="relative px-4">
-        <motion.div 
+        <motion.div
           className="absolute -top-16 left-4"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -106,13 +145,17 @@ export default function ProfilePage() {
             type: "spring",
             stiffness: 300,
             damping: 30,
-            delay: 0.2
+            delay: 0.2,
           }}
         >
           <div className="relative">
             <div className="h-32 w-32 rounded-full border-4 border-background bg-muted">
               <img
-                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=128&h=128&fit=crop&crop=faces"
+                src={
+                  dbUser?.avatarUrl ||
+                  authUser.user_metadata?.avatar_url ||
+                  "https://via.placeholder.com/128"
+                }
                 alt="Profile"
                 className="h-full w-full rounded-full object-cover"
               />
@@ -122,15 +165,36 @@ export default function ProfilePage() {
             </button>
           </div>
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           className="pt-20 pb-4"
           variants={container}
           initial="hidden"
           animate="show"
         >
           <div className="flex justify-between items-center mb-4">
-            <ProfileEditDialog profile={profile} onSave={handleProfileSave} />
+            <ProfileEditDialog
+              profile={{
+                name:
+                  dbUser?.name ||
+                  authUser.user_metadata?.name ||
+                  authUser.email?.split("@")[0] ||
+                  "",
+                username: authUser.email?.split("@")[0] || "",
+                bio: dbUser?.bio || authUser.user_metadata?.bio || "",
+                location: "",
+                twitter:
+                  dbUser?.twitterUrl ||
+                  authUser.user_metadata?.twitter_url ||
+                  "",
+                instagram:
+                  dbUser?.instagramUrl ||
+                  authUser.user_metadata?.instagram_url ||
+                  "",
+                url: "",
+              }}
+              onSave={handleProfileSave}
+            />
             <Link href="/settings">
               <Button variant="ghost" size="icon">
                 <Settings className="h-5 w-5" />
@@ -139,46 +203,35 @@ export default function ProfilePage() {
           </div>
 
           <motion.div variants={item}>
-            <h1 className="text-xl font-bold">{profile.name}</h1>
-            <p className="text-muted-foreground">@{profile.username}</p>
+            <h1 className="text-xl font-bold">
+              {dbUser?.name ||
+                authUser.user_metadata?.name ||
+                authUser.email?.split("@")[0]}
+            </h1>
+            <p className="text-muted-foreground">
+              @{authUser.email?.split("@")[0]}
+            </p>
           </motion.div>
 
           <motion.div variants={item} className="mt-4 space-y-4">
-            <p>{profile.bio}</p>
-            
-            <div className="space-y-2 text-muted-foreground">
-              <motion.div 
-                className="flex items-center gap-2"
-                variants={item}
-              >
-                <MapPin className="h-4 w-4" />
-                <span>{profile.location}</span>
-              </motion.div>
-              
-              {profile.url && (
-                <motion.div 
-                  className="flex items-center gap-2"
-                  variants={item}
-                >
-                  <LinkIcon className="h-4 w-4" />
-                  <a href={profile.url} className="text-primary hover:underline">
-                    {profile.url}
-                  </a>
-                </motion.div>
-              )}
+            <p>{dbUser?.bio || authUser.user_metadata?.bio || ""}</p>
 
-              <motion.div 
-                className="flex items-center gap-4"
-                variants={item}
-              >
+            <div className="space-y-2 text-muted-foreground">
+              {/* 位置情報は省略可能 */}
+
+              <motion.div className="flex items-center gap-4" variants={item}>
                 <button
-                  onClick={() => setSocialDialog({ open: true, type: "twitter" })}
+                  onClick={() =>
+                    setSocialDialog({ open: true, type: "twitter" })
+                  }
                   className="text-primary hover:text-primary/80 transition-colors"
                 >
                   <Twitter className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => setSocialDialog({ open: true, type: "instagram" })}
+                  onClick={() =>
+                    setSocialDialog({ open: true, type: "instagram" })
+                  }
                   className="text-primary hover:text-primary/80 transition-colors"
                 >
                   <Instagram className="h-5 w-5" />
@@ -186,22 +239,14 @@ export default function ProfilePage() {
               </motion.div>
             </div>
 
-            <motion.div 
-              className="flex gap-4"
-              variants={item}
-            >
-              <Link
-                href={`/profile/${profile.username}/connections?tab=following`}
-                className="hover:underline"
-              >
-                <span className="font-semibold">1,218</span>
+            {/* フォロー数などはAPIから取得するように将来的に修正 */}
+            <motion.div className="flex gap-4" variants={item}>
+              <Link href="#" className="hover:underline">
+                <span className="font-semibold">0</span>
                 <span className="text-muted-foreground ml-1">フォロー中</span>
               </Link>
-              <Link
-                href={`/profile/${profile.username}/connections?tab=followers`}
-                className="hover:underline"
-              >
-                <span className="font-semibold">1,099</span>
+              <Link href="#" className="hover:underline">
+                <span className="font-semibold">0</span>
                 <span className="text-muted-foreground ml-1">フォロワー</span>
               </Link>
             </motion.div>
@@ -223,17 +268,20 @@ export default function ProfilePage() {
                 {tab.label}
               </button>
             ))}
-            <motion.div 
+            <motion.div
               className="absolute bottom-0 h-1 bg-primary"
               initial={false}
               animate={{
-                left: `${(TABS.findIndex(tab => tab.id === activeTab) * 100) / TABS.length}%`,
-                width: `${100 / TABS.length}%`
+                left: `${
+                  (TABS.findIndex((tab) => tab.id === activeTab) * 100) /
+                  TABS.length
+                }%`,
+                width: `${100 / TABS.length}%`,
               }}
               transition={{
                 type: "spring",
                 stiffness: 400,
-                damping: 30
+                damping: 30,
               }}
             />
           </div>
@@ -241,7 +289,7 @@ export default function ProfilePage() {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          <motion.div 
+          <motion.div
             key={activeTab}
             className="mt-4 space-y-4"
             initial={{ opacity: 0, y: 20 }}
@@ -250,18 +298,28 @@ export default function ProfilePage() {
             transition={{
               type: "spring",
               stiffness: 300,
-              damping: 30
+              damping: 30,
             }}
           >
-            {activeTab === "posts" && posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-            {activeTab === "likes" && LIKED_POSTS.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            {activeTab === "posts" && posts.length > 0 ? (
+              posts.map((post) => <PostCard key={post.id} post={post} />)
+            ) : activeTab === "posts" ? (
+              <div className="py-8 text-center text-muted-foreground">
+                まだ投稿はありません
+              </div>
+            ) : null}
+
+            {activeTab === "likes" && LIKED_POSTS.length > 0 ? (
+              LIKED_POSTS.map((post) => <PostCard key={post.id} post={post} />)
+            ) : activeTab === "likes" ? (
+              <div className="py-8 text-center text-muted-foreground">
+                まだいいねした投稿はありません
+              </div>
+            ) : null}
+
             {(activeTab === "replies" || activeTab === "media") && (
               <div className="py-8 text-center text-muted-foreground">
-                まだ{TABS.find(t => t.id === activeTab)?.label}はありません
+                まだ{TABS.find((t) => t.id === activeTab)?.label}はありません
               </div>
             )}
           </motion.div>
@@ -270,9 +328,17 @@ export default function ProfilePage() {
 
       <SocialLinkDialog
         open={socialDialog.open}
-        onOpenChange={(open) => setSocialDialog({ open, type: null })}
+        onOpenChange={(open) =>
+          setSocialDialog({ open, type: socialDialog.type })
+        }
         type={socialDialog.type || "instagram"}
-        username={socialDialog.type ? profile[socialDialog.type] : ""}
+        username={
+          socialDialog.type === "instagram"
+            ? dbUser?.instagramUrl ||
+              authUser.user_metadata?.instagram_url ||
+              ""
+            : dbUser?.twitterUrl || authUser.user_metadata?.twitter_url || ""
+        }
         onSave={handleSocialSave}
       />
     </div>

@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
   eslint: {
     ignoreDuringBuilds: true,
   },
-  images: { unoptimized: true },
+  images: {
+    domains: ["lh3.googleusercontent.com"], // Google認証用に追加
+    unoptimized: false,
+  },
   webpack: (config) => {
     // Disable cache for both server and client builds
     config.cache = false;

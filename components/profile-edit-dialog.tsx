@@ -1,11 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Camera, Instagram, Twitter, ChevronRight, User, AtSign, FileText, MapPin } from "lucide-react";
+import {
+  Camera,
+  Instagram,
+  Twitter,
+  ChevronRight,
+  User,
+  AtSign,
+  FileText,
+  MapPin,
+} from "lucide-react";
 import { SocialInputDialog } from "@/components/social-input-dialog";
 import { InputDialog } from "@/components/input-dialog";
+import { useSession } from "@/app/auth/session-provider";
 
 interface ProfileEditDialogProps {
   profile: {
@@ -40,6 +56,13 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
     type: null,
   });
 
+  // ユーザー情報を取得
+  const { authUser, dbUser } = useSession();
+
+  // アバターURLを取得
+  const avatarUrl =
+    dbUser?.avatarUrl || authUser?.user_metadata?.avatar_url || "";
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(formData);
@@ -48,19 +71,28 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
 
   const handleSocialSave = (username: string) => {
     if (socialDialog.type) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [socialDialog.type]: username
+        [socialDialog.type === "instagram" ? "instagram" : "twitter"]: username,
       }));
     }
   };
 
   const handleInputSave = (value: string) => {
     if (inputDialog.type) {
-      setFormData(prev => ({
-        ...prev,
-        [inputDialog.type]: value
-      }));
+      const updatedData = { ...formData };
+
+      if (inputDialog.type === "name") {
+        updatedData.name = value;
+      } else if (inputDialog.type === "username") {
+        updatedData.username = value;
+      } else if (inputDialog.type === "bio") {
+        updatedData.bio = value;
+      } else if (inputDialog.type === "location") {
+        updatedData.location = value;
+      }
+
+      setFormData(updatedData);
     }
   };
 
@@ -69,23 +101,23 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
       name: {
         title: "表示名",
         icon: User,
-        value: formData.name
+        value: formData.name,
       },
       username: {
         title: "ID",
         icon: AtSign,
-        value: formData.username
+        value: formData.username,
       },
       bio: {
         title: "自己紹介",
         icon: FileText,
-        value: formData.bio
+        value: formData.bio,
       },
       location: {
         title: "場所",
         icon: MapPin,
-        value: formData.location
-      }
+        value: formData.location,
+      },
     };
     return config[type];
   };
@@ -96,7 +128,7 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
         <DialogTrigger asChild>
           <Button variant="outline">プロフィールを編集</Button>
         </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px] p-0" closeButton={false}>
+        <DialogContent className="sm:max-w-[425px] p-0">
           <DialogHeader className="p-4 text-center border-b">
             <DialogTitle>プロフィールを編集</DialogTitle>
           </DialogHeader>
@@ -106,7 +138,7 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
               <div className="relative">
                 <div className="h-24 w-24 rounded-full border-4 border-background bg-muted overflow-hidden">
                   <img
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=128&h=128&fit=crop&crop=faces"
+                    src={avatarUrl || "https://via.placeholder.com/128"}
                     alt="Profile"
                     className="h-full w-full object-cover"
                   />
@@ -123,29 +155,31 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
             <div className="space-y-2">
               <h3 className="text-sm font-medium mb-2">基本情報</h3>
               <div className="space-y-2 rounded-lg border">
-                {(["name", "username", "bio", "location"] as const).map((type) => {
-                  const config = getInputConfig(type);
-                  const Icon = config.icon;
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      className="w-full flex items-center justify-between p-3 hover:bg-accent rounded-md transition-colors"
-                      onClick={() => setInputDialog({ open: true, type })}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-5 w-5" />
-                        <span>{config.title}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <span className="truncate max-w-[200px]">
-                          {config.value || "未設定"}
-                        </span>
-                        <ChevronRight className="h-4 w-4 flex-shrink-0" />
-                      </div>
-                    </button>
-                  );
-                })}
+                {(["name", "username", "bio", "location"] as const).map(
+                  (type) => {
+                    const config = getInputConfig(type);
+                    const Icon = config.icon;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        className="w-full flex items-center justify-between p-3 hover:bg-accent rounded-md transition-colors"
+                        onClick={() => setInputDialog({ open: true, type })}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className="h-5 w-5" />
+                          <span>{config.title}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <span className="truncate max-w-[200px]">
+                            {config.value || "未設定"}
+                          </span>
+                          <ChevronRight className="h-4 w-4 flex-shrink-0" />
+                        </div>
+                      </button>
+                    );
+                  }
+                )}
               </div>
             </div>
 
@@ -156,7 +190,9 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
                 <button
                   type="button"
                   className="w-full flex items-center justify-between p-3 hover:bg-accent rounded-md transition-colors"
-                  onClick={() => setSocialDialog({ open: true, type: "twitter" })}
+                  onClick={() =>
+                    setSocialDialog({ open: true, type: "twitter" })
+                  }
                 >
                   <div className="flex items-center gap-3">
                     <Twitter className="h-5 w-5" />
@@ -171,7 +207,9 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
                 <button
                   type="button"
                   className="w-full flex items-center justify-between p-3 hover:bg-accent rounded-md transition-colors"
-                  onClick={() => setSocialDialog({ open: true, type: "instagram" })}
+                  onClick={() =>
+                    setSocialDialog({ open: true, type: "instagram" })
+                  }
                 >
                   <div className="flex items-center gap-3">
                     <Instagram className="h-5 w-5" />
@@ -186,7 +224,11 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
             </div>
 
             <div className="flex justify-between gap-2 pt-4 border-t">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setOpen(false)}
+              >
                 キャンセル
               </Button>
               <Button type="submit">保存</Button>
@@ -199,7 +241,13 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
         open={socialDialog.open}
         onOpenChange={(open) => setSocialDialog({ ...socialDialog, open })}
         type={socialDialog.type || "instagram"}
-        value={socialDialog.type ? formData[socialDialog.type] : ""}
+        value={
+          socialDialog.type
+            ? formData[
+                socialDialog.type === "instagram" ? "instagram" : "twitter"
+              ]
+            : ""
+        }
         onSave={handleSocialSave}
       />
 
