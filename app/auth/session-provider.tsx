@@ -3,9 +3,19 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { UserService } from "@/lib/user-service";
-import { User } from "@prisma/client";
 import { AuthChangeEvent, Session } from "@supabase/supabase-js";
+
+// ユーザーの型定義
+// Prismaのimportは避けてここで型を再定義
+type User = {
+  id: string;
+  email: string;
+  instagramUrl?: string | null;
+  twitterUrl?: string | null;
+  bio?: string | null;
+  name?: string | null;
+  avatarUrl?: string | null;
+};
 
 // セッションコンテキストの型定義
 type SessionContextType = {
@@ -45,31 +55,18 @@ export default function SessionProvider({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const router = useRouter();
 
-  // Prismaユーザーデータを取得・同期する関数
-  const syncUserWithDatabase = async (supabaseUser: any) => {
-    if (!supabaseUser) {
-      setDbUser(null);
-      return;
-    }
-
+  // APIを使用してユーザーデータを取得する関数
+  const fetchUserData = async () => {
     try {
-      // Supabase認証ユーザーのIDを使ってPrismaのユーザーデータを取得または作成
-      const user = await UserService.getOrCreateUser(
-        supabaseUser.id,
-        supabaseUser.email || "",
-        {
-          instagramUrl: supabaseUser.user_metadata?.instagram_url,
-          twitterUrl: supabaseUser.user_metadata?.twitter_url,
-          bio: supabaseUser.user_metadata?.bio,
-          name:
-            supabaseUser.user_metadata?.name ||
-            supabaseUser.user_metadata?.full_name,
-          avatarUrl: supabaseUser.user_metadata?.avatar_url,
-        }
-      );
-      setDbUser(user);
+      const response = await fetch("/api/user");
+      if (response.ok) {
+        const userData = await response.json();
+        setDbUser(userData);
+      } else {
+        console.error("ユーザーデータ取得エラー:", response.statusText);
+      }
     } catch (error) {
-      console.error("ユーザー同期エラー:", error);
+      console.error("ユーザーデータ取得エラー:", error);
     }
   };
 
@@ -80,9 +77,9 @@ export default function SessionProvider({
         const { data } = await supabase.auth.getUser();
         setAuthUser(data.user);
 
-        // 認証ユーザーがいる場合はPrismaと同期
+        // 認証ユーザーがいる場合はAPIを使ってユーザーデータを取得
         if (data.user) {
-          await syncUserWithDatabase(data.user);
+          await fetchUserData();
         }
       } catch (error) {
         console.error("セッション取得エラー:", error);
@@ -100,16 +97,17 @@ export default function SessionProvider({
         const user = session?.user || null;
         setAuthUser(user);
 
-        // ユーザーデータベース同期
-        await syncUserWithDatabase(user);
+        if (user) {
+          // ユーザーデータ取得
+          await fetchUserData();
+        } else {
+          setDbUser(null);
+        }
 
         if (event === "SIGNED_IN") {
           router.refresh();
         } else if (event === "SIGNED_OUT") {
           router.refresh();
-        } else if (event === "USER_UPDATED") {
-          // ユーザー情報が更新された場合も同期
-          await syncUserWithDatabase(user);
         }
       }
     );
@@ -134,15 +132,28 @@ export default function SessionProvider({
     name?: string;
     avatarUrl?: string;
   }): Promise<User | null> => {
-    if (!authUser || !dbUser) {
+    if (!authUser) {
       return null;
     }
 
     try {
-      // Prismaのユーザーデータを更新
-      const updatedUser = await UserService.updateUser(dbUser.id, data);
-      setDbUser(updatedUser);
-      return updatedUser;
+      // APIを使用してユーザーデータを更新
+      const response = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        setDbUser(updatedUser);
+        return updatedUser;
+      } else {
+        console.error("プロフィール更新エラー:", response.statusText);
+        return null;
+      }
     } catch (error) {
       console.error("プロフィール更新エラー:", error);
       return null;

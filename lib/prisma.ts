@@ -3,9 +3,14 @@ import { PrismaClient } from "@prisma/client";
 // グローバルスコープでPrismaClientのインスタンスを保持
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
-// 開発環境での重複インスタンス化を防ぐ
-export const prisma = globalForPrisma.prisma || new PrismaClient();
+// PrismaClientはサーバーサイドでのみ初期化
+export const prisma =
+  globalForPrisma.prisma ||
+  new PrismaClient({
+    log: ["query", "error", "warn"],
+  });
 
+// development環境では、hot-reloadingでPrismaClientのインスタンスが複数作成されるのを防ぐ
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 export default prisma;

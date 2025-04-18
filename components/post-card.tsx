@@ -72,14 +72,22 @@ export function PostCard({ post }: PostCardProps) {
         <div className="flex items-center gap-2 mb-4">
           <Avatar>
             <AvatarImage
-              src={`https://avatars.dicebear.com/api/avataaars/${post.User.id}.svg`}
+              src={
+                post.User?.id
+                  ? `https://avatars.dicebear.com/api/avataaars/${post.User.id}.svg`
+                  : undefined
+              }
             />
             <AvatarFallback>
-              {post.User.email.substring(0, 2).toUpperCase()}
+              {post.User?.email
+                ? post.User.email.substring(0, 2).toUpperCase()
+                : "UN"}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium text-sm">{post.User.email}</p>
+            <p className="font-medium text-sm">
+              {post.User?.email || "不明なユーザー"}
+            </p>
             <p className="text-xs text-muted-foreground">
               {formatDistanceToNow(new Date(post.createdAt), {
                 addSuffix: true,
