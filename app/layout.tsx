@@ -6,7 +6,8 @@ import { SideNav } from "@/components/side-nav";
 import { BottomNav } from "@/components/bottom-nav";
 import { CreatePostButton } from "@/components/create-post-button";
 import SessionProvider from "@/app/auth/session-provider";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { PostsProvider } from "@/lib/contexts/posts-context";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,18 +25,20 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <SessionProvider>
-          <div className="min-h-screen bg-background">
-            <Header />
-            <div className="flex">
-              <SideNav className="hidden lg:block" />
-              <main className="flex-1 container mx-auto px-4 py-6">
-                {children}
-              </main>
+          <PostsProvider>
+            <div className="min-h-screen bg-background">
+              <Header />
+              <div className="flex">
+                <SideNav className="hidden lg:block" />
+                <main className="flex-1 container mx-auto px-4 py-6">
+                  {children}
+                </main>
+              </div>
+              <BottomNav className="lg:hidden fixed bottom-0 left-0 right-0" />
+              <CreatePostButton />
             </div>
-            <BottomNav className="lg:hidden fixed bottom-0 left-0 right-0" />
-            <CreatePostButton />
-          </div>
-          <Toaster position="top-center" />
+            <Toaster />
+          </PostsProvider>
         </SessionProvider>
       </body>
     </html>

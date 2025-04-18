@@ -5,6 +5,7 @@ import { PostCard } from "@/components/post-card";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { motion, AnimatePresence } from "framer-motion";
 import { Post } from "@/lib/supabase/types";
+import { usePostsContext } from "@/lib/contexts/posts-context";
 
 const POSTS_PER_PAGE = 10;
 
@@ -14,6 +15,8 @@ export function PostFeed() {
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
+  const { shouldRefresh, setShouldRefresh, newPosts, clearNewPosts } =
+    usePostsContext();
 
   // 投稿を取得する関数
   const fetchPosts = async (newCursor?: string | null) => {
@@ -58,6 +61,33 @@ export function PostFeed() {
     setMounted(true);
     fetchPosts();
   }, []);
+
+  // 新規投稿や更新があったら再取得
+  useEffect(() => {
+    if (shouldRefresh) {
+      console.log("投稿リストを更新します");
+      // 完全に最新データを取得するため、カーソルをリセット
+      setCursor(null);
+      fetchPosts();
+      setShouldRefresh(false);
+    }
+  }, [shouldRefresh, setShouldRefresh]);
+
+  // 新しい投稿をリストに追加
+  useEffect(() => {
+    if (newPosts && newPosts.length > 0) {
+      console.log("新しい投稿をリストに追加します:", newPosts);
+      // 既存の投稿と重複がないようにマージ
+      const uniquePosts = [...newPosts, ...posts].filter(
+        (post, index, self) => index === self.findIndex((p) => p.id === post.id)
+      );
+      console.log("更新後の投稿リスト:", uniquePosts);
+      setPosts(uniquePosts);
+
+      // 投稿が反映されたらnewPostsをクリア
+      clearNewPosts();
+    }
+  }, [newPosts, posts, clearNewPosts]);
 
   const loadMorePosts = () => {
     fetchPosts(cursor);

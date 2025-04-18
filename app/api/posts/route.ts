@@ -107,3 +107,122 @@ export async function GET(request: Request) {
     );
   }
 }
+
+export async function POST(request: Request) {
+  try {
+    console.log("POST request to /api/posts received");
+
+    // リクエストボディを先に取得
+    const body = await request.json();
+    console.log("Request body:", JSON.stringify(body));
+
+    // クライアントから送信されたユーザーIDとメールアドレスを確認
+    const clientProvidedUserId = body.userId;
+    const userEmail = body.userEmail;
+    console.log("クライアント提供のユーザーID:", clientProvidedUserId);
+    console.log("クライアント提供のメールアドレス:", userEmail);
+
+    // Supabaseクライアントを作成
+    const supabase = createRouteHandlerClient({ cookies });
+
+    let userId = null;
+
+    // 1. まず、メールアドレスでユーザーを検索（既存のユーザーを優先）
+    if (userEmail) {
+      const { data: existingUserByEmail } = await supabase
+        .from("User")
+        .select("id")
+        .eq("email", userEmail)
+        .single();
+
+      if (existingUserByEmail) {
+        console.log(
+          "メールアドレスで既存ユーザーを見つけました:",
+          existingUserByEmail.id
+        );
+        userId = existingUserByEmail.id;
+      }
+    }
+
+    // 2. ユーザーが見つからない場合は、クライアント提供のIDを使用
+    if (!userId && clientProvidedUserId) {
+      // クライアント提供のIDでユーザーが存在するか確認
+      const { data: existingUserById } = await supabase
+        .from("User")
+        .select("id")
+        .eq("id", clientProvidedUserId)
+        .single();
+
+      if (existingUserById) {
+        console.log("IDで既存ユーザーを見つけました:", existingUserById.id);
+        userId = existingUserById.id;
+      } else {
+        userId = clientProvidedUserId;
+      }
+    }
+
+    // ユーザーIDがない場合はエラー
+    if (!userId) {
+      console.log("ユーザーIDが利用できません - 認証エラー");
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
+
+    // 必須データのバリデーション
+    if (!body.imageUrl) {
+      return NextResponse.json({ error: "画像は必須です" }, { status: 400 });
+    }
+
+    // Postテーブルにデータを挿入
+    console.log("Inserting post data for user:", userId);
+
+    try {
+      const { data: post, error } = await supabase
+        .from("Post")
+        .insert({
+          userId: userId,
+          imageUrl: body.imageUrl,
+          description: body.description || null,
+          shutterSpeed: body.shutterSpeed || null,
+          iso: body.iso || null,
+          aperture: body.aperture || null,
+          // locationカラムは存在しないため除外
+          latitude: body.latitude || null,
+          longitude: body.longitude || null,
+        })
+        .select(
+          `
+          *,
+          User (
+            id,
+            email,
+            name,
+            avatarUrl
+          )
+        `
+        )
+        .single();
+
+      if (error) {
+        console.error("Error creating post:", error);
+        return NextResponse.json(
+          { error: "投稿の作成に失敗しました: " + error.message },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ data: post }, { status: 201 });
+    } catch (dbError) {
+      console.error("データベース操作エラー:", dbError);
+      return NextResponse.json(
+        { error: "データベース操作に失敗しました" },
+        { status: 500 }
+      );
+    }
+  } catch (error) {
+    console.error("Error creating post:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}

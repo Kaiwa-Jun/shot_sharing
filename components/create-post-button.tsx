@@ -6,12 +6,26 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { CreatePostDialog } from "./create-post-dialog";
 import { usePathname } from "next/navigation";
+import { usePostsContext } from "@/lib/contexts/posts-context";
 
 export function CreatePostButton() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const isPostDetail = pathname.startsWith("/posts/");
   const isSettings = pathname.startsWith("/settings");
+  const { addNewPost } = usePostsContext();
+
+  const handlePostSuccess = (post: any) => {
+    // デバッグログを追加
+    console.log("投稿成功ハンドラーが呼ばれました", post);
+    if (!post) {
+      console.error("投稿データがありません");
+      return;
+    }
+
+    // 新しい投稿をコンテキストに追加
+    addNewPost(post);
+  };
 
   if (isPostDetail || isSettings) {
     return null;
@@ -32,7 +46,11 @@ export function CreatePostButton() {
           <Plus className="h-6 w-6" />
         </Button>
       </motion.div>
-      <CreatePostDialog open={open} onOpenChange={setOpen} />
+      <CreatePostDialog
+        open={open}
+        onOpenChange={setOpen}
+        onSuccess={handlePostSuccess}
+      />
     </>
   );
 }
