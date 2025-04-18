@@ -1,95 +1,88 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Image, Send } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 
 interface ReplyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  post: {
-    id: string;
-    user: {
-      name: string;
-      username: string;
-      avatar: string;
-    };
-  };
-  onReplySubmit?: () => void;
+  postId: string;
 }
 
-export function ReplyDialog({ open, onOpenChange, post, onReplySubmit }: ReplyDialogProps) {
-  const [replyText, setReplyText] = useState("");
+export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
+  const [comment, setComment] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!replyText.trim()) return;
-    
-    onReplySubmit?.();
-    setReplyText("");
-    onOpenChange(false);
+  const handleSubmit = async () => {
+    if (!comment.trim()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      // ここにコメント送信のAPIリクエストを実装
+      // const response = await fetch(`/api/posts/${postId}/comments`, {
+      //   method: "POST",
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //   },
+      //   body: JSON.stringify({ content: comment }),
+      // });
+
+      // if (!response.ok) {
+      //   throw new Error("Failed to post comment");
+      // }
+
+      // 送信成功時の処理
+      setComment("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error posting comment:", error);
+      // エラー処理
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] p-0">
-        <DialogHeader className="p-4 border-b">
-          <DialogTitle className="text-center">返信を投稿</DialogTitle>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>コメントを追加</DialogTitle>
+          <DialogDescription>投稿にコメントを追加します。</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="p-4">
-          <div className="flex gap-3">
-            <div className="relative">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={post.user.avatar} />
-                <AvatarFallback>{post.user.name[0]}</AvatarFallback>
-              </Avatar>
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0.5 h-6 translate-y-6 bg-border" />
-            </div>
-            <div className="flex-1">
-              <div className="font-medium">{post.user.name}</div>
-              <div className="text-sm text-muted-foreground">@{post.user.username}</div>
-            </div>
-          </div>
 
-          <div className="mt-6 flex gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=faces" />
-              <AvatarFallback>JD</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <div className="relative">
-                <textarea
-                  value={replyText}
-                  onChange={(e) => setReplyText(e.target.value)}
-                  placeholder="返信を入力..."
-                  className="w-full min-h-[80px] p-3 pr-12 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                />
-                <div className="absolute bottom-3 right-3">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                  >
-                    <Image className="h-5 w-5" />
-                  </Button>
-                </div>
-              </div>
-              <div className="flex justify-end mt-2">
-                <Button
-                  type="submit"
-                  className="rounded-full"
-                  disabled={!replyText.trim()}
-                >
-                  <Send className="h-4 w-4 mr-2" />
-                  返信
-                </Button>
-              </div>
-            </div>
-          </div>
-        </form>
+        <div className="grid gap-4 py-4">
+          <Textarea
+            placeholder="コメントを入力してください..."
+            className="min-h-[100px]"
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            キャンセル
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={!comment.trim() || isSubmitting}
+          >
+            {isSubmitting ? "送信中..." : "コメントを投稿"}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

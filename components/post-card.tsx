@@ -11,222 +11,176 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { ReplySection } from "@/components/reply-section";
 import { ReplyDialog } from "@/components/reply-dialog";
+import { Post } from "@/lib/supabase/types";
 
 interface PostCardProps {
-  post: {
-    id: string;
-    imageUrl: string;
-    user: {
-      name: string;
-      username: string;
-      avatar: string;
-    };
-    description: string;
-    shutterSpeed: string;
-    iso: number;
-    aperture: number;
-    location: string;
-    shootingDate: string;
-    likes: number;
-    comments: number;
-    createdAt: string;
-    isLiked?: boolean;
-  };
-  isDetail?: boolean;
+  post: Post;
 }
 
-export function PostCard({ post, isDetail = false }: PostCardProps) {
+export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
-  const [isLiked, setIsLiked] = useState(post.isLiked || false);
-  const [likeCount, setLikeCount] = useState(post.likes);
-  const [commentCount, setCommentCount] = useState(post.comments);
-  const [isCommentAnimating, setIsCommentAnimating] = useState(false);
-  const [replyDialogOpen, setReplyDialogOpen] = useState(false);
+  const [showReplies, setShowReplies] = useState(false);
+  const [isLiked, setIsLiked] = useState(post.userLiked || false);
+  const [likeCount, setLikeCount] = useState(post.Like?.length || 0);
+  const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
 
-  const handlePostClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on interactive elements
-    if (
-      (e.target as HTMLElement).closest('.user-profile-link') ||
-      (e.target as HTMLElement).closest('button')
-    ) {
-      return;
-    }
-    
-    if (!isDetail) {
-      router.push(`/posts/${post.id}`);
-    }
+  // 投稿の詳細ページに移動
+  const handleCardClick = () => {
+    router.push(`/posts/${post.id}`);
   };
 
-  const handleProfileClick = (e: React.MouseEvent) => {
+  // いいねボタンをクリック
+  const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    router.push(`/profile/${post.user.username}`);
-  };
 
-  const handleLikeClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+    // 実際にはAPIを呼び出してデータベースを更新する処理が必要
     setIsLiked(!isLiked);
-    setLikeCount(prev => isLiked ? prev - 1 : prev + 1);
+    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+
+    // いいね処理を実装するためのAPI呼び出し
+    // try {
+    //   await fetch(`/api/posts/${post.id}/like`, {
+    //     method: isLiked ? 'DELETE' : 'POST',
+    //   });
+    // } catch (error) {
+    //   console.error('Error liking post:', error);
+    //   // 失敗した場合は元に戻す
+    //   setIsLiked(!isLiked);
+    //   setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
+    // }
   };
 
-  const handleReplyClick = (e: React.MouseEvent) => {
+  // コメントボタンをクリック
+  const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isDetail) {
-      setReplyDialogOpen(true);
-    }
+    setIsReplyDialogOpen(true);
   };
 
-  const handleReplyCountChange = (count: number) => {
-    if (count !== commentCount) {
-      setIsCommentAnimating(true);
-      setCommentCount(count);
-    }
+  // シェアボタンをクリック
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
+    // 後でトースト通知を追加する
   };
-
-  useEffect(() => {
-    if (isCommentAnimating) {
-      const timer = setTimeout(() => {
-        setIsCommentAnimating(false);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [isCommentAnimating]);
 
   return (
-    <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className={cn(!isDetail && "cursor-pointer")}
-      >
-        <Card 
-          className="overflow-hidden transition-colors duration-200 hover:bg-accent/10"
-          onClick={handlePostClick}
-        >
-          <div className="p-4">
-            <div className="flex items-center gap-3">
-              <button
-                className="user-profile-link"
-                onClick={handleProfileClick}
-              >
-                <Avatar className="h-10 w-10 hover:ring-2 hover:ring-primary/20 transition-all">
-                  <AvatarImage src={post.user.avatar} />
-                  <AvatarFallback>{post.user.name[0]}</AvatarFallback>
-                </Avatar>
-              </button>
-              <button
-                className="user-profile-link text-left"
-                onClick={handleProfileClick}
-              >
-                <div className="font-semibold hover:underline">{post.user.name}</div>
-                <div className="text-sm text-muted-foreground hover:underline">@{post.user.username}</div>
-              </button>
-            </div>
-          </div>
-
-          <div className="relative">
-            <img
-              src={post.imageUrl}
-              alt={post.description}
-              className="w-full aspect-[4/3] object-cover"
+    <Card
+      className="overflow-hidden transition-all duration-300 hover:shadow-md cursor-pointer"
+      onClick={handleCardClick}
+    >
+      <div className="p-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Avatar>
+            <AvatarImage
+              src={`https://avatars.dicebear.com/api/avataaars/${post.User.id}.svg`}
             />
+            <AvatarFallback>
+              {post.User.email.substring(0, 2).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium text-sm">{post.User.email}</p>
+            <p className="text-xs text-muted-foreground">
+              {formatDistanceToNow(new Date(post.createdAt), {
+                addSuffix: true,
+              })}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <img src={post.imageUrl} alt="Photo" className="w-full h-auto" />
+      </div>
+
+      <div className="p-4">
+        <div className="flex justify-between mb-4">
+          <div className="flex gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1 px-2"
+              onClick={handleLikeClick}
+            >
+              <Heart
+                className={cn(
+                  "h-5 w-5",
+                  isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+                )}
+              />
+              <span>{likeCount}</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex items-center gap-1 px-2"
+              onClick={handleCommentClick}
+            >
+              <MessageCircle className="h-5 w-5" />
+              <span>0</span>
+            </Button>
           </div>
 
-          <div className="p-4">
-            <div className="mb-4">
-              <p className="text-muted-foreground">{post.description}</p>
-            </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="px-2"
+            onClick={handleShareClick}
+          >
+            <Share2 className="h-5 w-5" />
+          </Button>
+        </div>
 
-            <div className="flex gap-4 mb-4">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn(
-                  "transition-all duration-200",
-                  isLiked ? "text-red-500 hover:text-red-600" : "hover:text-red-500"
-                )}
-                onClick={handleLikeClick}
-              >
-                <motion.div
-                  initial={false}
-                  animate={isLiked ? { scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Heart 
-                    className="h-5 w-5 mr-1" 
-                    fill={isLiked ? "currentColor" : "none"} 
-                  />
-                </motion.div>
-                {likeCount}
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className={cn(
-                  "transition-colors duration-1000",
-                  isCommentAnimating ? "text-sky-500" : "hover:text-sky-500"
-                )}
-                onClick={handleReplyClick}
-              >
-                <motion.div
-                  initial={false}
-                  animate={isCommentAnimating ? { scale: [1, 1.2, 1] } : {}}
-                  transition={{ duration: 0.3 }}
-                >
-                  <MessageCircle className="h-5 w-5 mr-1" />
-                </motion.div>
-                {commentCount}
-              </Button>
-              <Button variant="ghost" size="sm">
-                <Share2 className="h-5 w-5" />
-              </Button>
-            </div>
-
-            <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <div className="text-muted-foreground">シャッタースピード</div>
-                  <div className="font-medium">{post.shutterSpeed}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">ISO</div>
-                  <div className="font-medium">{post.iso}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">絞り</div>
-                  <div className="font-medium">f/{post.aperture}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">撮影日時</div>
-                  <div className="font-medium">{post.shootingDate}</div>
-                </div>
-              </div>
+        {/* EXIF情報を下部にまとめて表示 */}
+        <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            {post.shutterSpeed && (
               <div>
-                <div className="text-muted-foreground">撮影場所</div>
-                <div className="font-medium">{post.location}</div>
+                <div className="text-muted-foreground">シャッタースピード</div>
+                <div className="font-medium">{post.shutterSpeed}</div>
               </div>
-            </div>
+            )}
+            {post.iso && (
+              <div>
+                <div className="text-muted-foreground">ISO</div>
+                <div className="font-medium">{post.iso}</div>
+              </div>
+            )}
+            {post.aperture && (
+              <div>
+                <div className="text-muted-foreground">絞り</div>
+                <div className="font-medium">f/{post.aperture}</div>
+              </div>
+            )}
+            {post.latitude && post.longitude && (
+              <div>
+                <div className="text-muted-foreground">位置情報</div>
+                <div className="font-medium">
+                  {post.latitude.toFixed(4)}, {post.longitude.toFixed(4)}
+                </div>
+              </div>
+            )}
           </div>
-        </Card>
+        </div>
 
-        {isDetail && (
-          <>
-            <div className="mt-6 hidden lg:block">
-              <ReplySection postId={post.id} onReplyCountChange={handleReplyCountChange} />
-            </div>
-            <div className="lg:hidden fixed bottom-16 left-0 right-0 bg-background border-t">
-              <ReplySection postId={post.id} isMobile onReplyCountChange={handleReplyCountChange} />
-            </div>
-          </>
+        {showReplies && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ReplySection postId={post.id} />
+          </motion.div>
         )}
-      </motion.div>
+      </div>
 
       <ReplyDialog
-        open={replyDialogOpen}
-        onOpenChange={setReplyDialogOpen}
-        post={post}
-        onReplySubmit={() => handleReplyCountChange(commentCount + 1)}
+        open={isReplyDialogOpen}
+        onOpenChange={setIsReplyDialogOpen}
+        postId={post.id}
       />
-    </>
+    </Card>
   );
 }

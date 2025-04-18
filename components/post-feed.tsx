@@ -4,40 +4,63 @@ import { useState, useEffect } from "react";
 import { PostCard } from "@/components/post-card";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { motion, AnimatePresence } from "framer-motion";
-import { generateMockPosts, MOCK_USERS } from "@/lib/mock-data";
+import { Post } from "@/lib/supabase/types";
 
-const POSTS_PER_PAGE = 5;
+const POSTS_PER_PAGE = 10;
 
 export function PostFeed() {
   const [mounted, setMounted] = useState(false);
-  const [posts, setPosts] = useState<ReturnType<typeof generateMockPosts>>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [cursor, setCursor] = useState<string | null>(null);
+
+  // 投稿を取得する関数
+  const fetchPosts = async (newCursor?: string | null) => {
+    if (loading) return;
+
+    setLoading(true);
+    try {
+      // URLパラメータの構築
+      const params = new URLSearchParams();
+      params.append("limit", POSTS_PER_PAGE.toString());
+      if (newCursor) {
+        params.append("cursor", newCursor);
+      }
+
+      // APIからデータを取得
+      const response = await fetch(`/api/posts?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch posts");
+      }
+
+      const data = await response.json();
+
+      if (newCursor) {
+        // 追加の投稿を読み込む場合
+        setPosts((prev) => [...prev, ...data.data]);
+      } else {
+        // 初回の読み込み
+        setPosts(data.data);
+      }
+
+      setCursor(data.cursor);
+      setHasMore(data.hasMore);
+    } catch (error) {
+      console.error("Error fetching posts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
-    const initialPosts = Array.from({ length: POSTS_PER_PAGE }, (_, i) => {
-      // Rotate through all users evenly
-      const userIndex = i % MOCK_USERS.length;
-      return generateMockPosts(1, userIndex)[0];
-    });
-    setPosts(initialPosts);
+    fetchPosts();
   }, []);
 
   const loadMorePosts = () => {
-    const nextPage = page + 1;
-    const newPosts = Array.from({ length: POSTS_PER_PAGE }, (_, i) => {
-      // Calculate the absolute index to ensure we continue rotating through all users
-      const absoluteIndex = (nextPage * POSTS_PER_PAGE + i);
-      const userIndex = absoluteIndex % MOCK_USERS.length;
-      return generateMockPosts(1, userIndex)[0];
-    });
-
-    setTimeout(() => {
-      setPosts((prevPosts) => [...prevPosts, ...newPosts]);
-      setPage(nextPage);
-      setHasMore(nextPage < 3); // Limit to 4 pages total
-    }, 1000);
+    fetchPosts(cursor);
   };
 
   if (!mounted) {
