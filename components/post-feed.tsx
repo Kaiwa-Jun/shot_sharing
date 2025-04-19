@@ -11,7 +11,7 @@ import useSWRInfinite from "swr/infinite";
 const POSTS_PER_PAGE = 10;
 
 // APIレスポンスの型定義
-interface PostsResponse {
+export interface PostsResponse {
   data: Post[];
   cursor: string | null;
   hasMore: boolean;
@@ -26,7 +26,12 @@ const fetcher = async (url: string): Promise<PostsResponse> => {
   return response.json();
 };
 
-export function PostFeed() {
+// 事前に取得したデータを受け取るためのProps追加
+interface PostFeedProps {
+  initialData?: PostsResponse;
+}
+
+export function PostFeed({ initialData }: PostFeedProps = {}) {
   const [mounted, setMounted] = useState(false);
   const { shouldRefresh, setShouldRefresh, newPosts, clearNewPosts } =
     usePostsContext();
@@ -46,13 +51,14 @@ export function PostFeed() {
     return `/api/posts?limit=${POSTS_PER_PAGE}&cursor=${previousPageData.cursor}`;
   };
 
-  // SWRInfiniteを使用してデータ取得
+  // SWRInfiniteを使用してデータ取得（初期データあり）
   const { data, error, size, setSize, mutate } = useSWRInfinite<PostsResponse>(
     getKey,
     fetcher,
     {
       revalidateOnFocus: false,
       revalidateFirstPage: false,
+      fallbackData: initialData ? [initialData] : undefined, // 初期データをセット
     }
   );
 
@@ -107,7 +113,20 @@ export function PostFeed() {
     setSize(size + 1);
   };
 
+  // 初期データがあって、まだマウントされていない場合は、スケルトンではなく初期データを表示
   if (!mounted) {
+    if (initialData && initialData.data.length > 0) {
+      return (
+        <div className="space-y-8">
+          {initialData.data.map((post, index) => (
+            <div key={post.id} className="opacity-90">
+              <PostCard post={post} />
+            </div>
+          ))}
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-8">
         {Array.from({ length: POSTS_PER_PAGE }).map((_, i) => (
