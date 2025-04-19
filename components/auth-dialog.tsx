@@ -16,6 +16,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { isBrowser } from "@/lib/utils";
 
 interface AuthDialogProps {
   open: boolean;
@@ -35,7 +36,9 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
 
   // URLオリジンをクライアントサイドでのみ取得
   useEffect(() => {
-    setOrigin(window.location.origin);
+    if (isBrowser()) {
+      setOrigin(window.location.origin);
+    }
   }, []);
 
   const handleGoogleSignIn = async () => {

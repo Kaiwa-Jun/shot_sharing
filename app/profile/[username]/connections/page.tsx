@@ -4,6 +4,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MOCK_USERS, type User } from "@/lib/mock-data";
 import ConnectionsList from "./connections-list";
 
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
+
 export async function generateStaticParams() {
   // Include crew_runteq38 in the static paths
   return [

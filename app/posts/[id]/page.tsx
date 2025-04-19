@@ -3,6 +3,9 @@ import { generateMockPosts, MOCK_USERS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
 
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
+
 // Generate static paths for all possible posts
 export async function generateStaticParams() {
   // Generate params for all possible post IDs

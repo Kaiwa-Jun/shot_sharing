@@ -5,17 +5,25 @@ import { MOCK_USERS } from "@/lib/mock-data";
 import FollowersList from "./followers-list";
 
 export async function generateStaticParams() {
-  return MOCK_USERS.map(user => ({
-    username: user.username
+  return MOCK_USERS.map((user) => ({
+    username: user.username,
   }));
 }
 
-export default function FollowersPage({ params }: { params: { username: string } }) {
-  const user = MOCK_USERS.find(u => u.username === params.username);
+export const dynamic = "force-dynamic";
+
+export default function FollowersPage({
+  params,
+}: {
+  params: { username: string };
+}) {
+  const user = MOCK_USERS.find((u) => u.username === params.username);
   if (!user) return null;
 
   // Generate mock followers
-  const followers = MOCK_USERS.filter(u => u.username !== user.username).slice(0, 10);
+  const followers = MOCK_USERS.filter(
+    (u) => u.username !== user.username
+  ).slice(0, 10);
 
   return (
     <div className="container max-w-2xl mx-auto py-6">

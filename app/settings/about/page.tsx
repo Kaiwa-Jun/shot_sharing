@@ -29,6 +29,8 @@ const ABOUT_ITEMS = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default function AboutPage() {
   return (
     <div className="container max-w-2xl mx-auto py-6">

@@ -19,13 +19,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
-import { cn } from "@/lib/utils";
+import { cn, isBrowser } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { ReplySection } from "@/components/reply-section";
 import { ReplyDialog } from "@/components/reply-dialog";
 import { Post } from "@/lib/supabase/types";
 import { useSession } from "@/app/auth/session-provider";
+import { toast } from "sonner";
 
 interface PostCardProps {
   post: Post;
@@ -86,10 +87,15 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   // シェアボタンをクリック
-  const handleShareClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    navigator.clipboard.writeText(`${window.location.origin}/posts/${post.id}`);
-    // 後でトースト通知を追加する
+  const handleShare = () => {
+    if (isBrowser() && navigator.clipboard) {
+      navigator.clipboard.writeText(
+        `${window.location.origin}/posts/${post.id}`
+      );
+      toast.success("URLをコピーしました");
+    } else {
+      toast.error("この機能はブラウザでのみ利用可能です");
+    }
   };
 
   // 投稿を編集
@@ -189,7 +195,7 @@ export function PostCard({ post }: PostCardProps) {
                 </>
               )}
               <DropdownMenuItem
-                onClick={handleShareClick}
+                onClick={handleShare}
                 className="flex justify-between"
               >
                 <span>投稿の共有</span>

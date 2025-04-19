@@ -46,6 +46,8 @@ const SETTINGS_ITEMS = [
   },
 ];
 
+export const dynamic = "force-dynamic";
+
 export default function SettingsPage() {
   const { authUser, dbUser, signOut } = useSession();
   const router = useRouter();

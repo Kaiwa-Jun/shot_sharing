@@ -1,10 +1,10 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn, isBrowser } from "@/lib/utils";
 import { Home, Search, Users, Bell } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
@@ -18,44 +18,32 @@ export function BottomNav({ className }: { className?: string }) {
   const [isScrolling, setIsScrolling] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [scrollTimeout, setScrollTimeout] = useState<NodeJS.Timeout>();
+  const [prevScrollY, setPrevScrollY] = useState(0);
+  const [visible, setVisible] = useState(true);
+
+  const handleScroll = useCallback(() => {
+    if (!isBrowser()) return;
+
+    const currentScrollY = window.scrollY;
+    setVisible(prevScrollY > currentScrollY || currentScrollY < 10);
+    setPrevScrollY(currentScrollY);
+  }, [prevScrollY]);
 
   useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      if (currentScrollY > 0 && Math.abs(currentScrollY - lastScrollY) > 5) {
-        setIsScrolling(true);
-      }
-
-      setLastScrollY(currentScrollY);
-
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
-
-      const timeout = setTimeout(() => {
-        setIsScrolling(false);
-      }, 150);
-
-      setScrollTimeout(timeout);
-    };
+    if (!isBrowser()) return;
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      if (scrollTimeout) {
-        clearTimeout(scrollTimeout);
-      }
     };
-  }, [scrollTimeout, lastScrollY]);
+  }, [handleScroll]);
 
   return (
-    <nav 
+    <nav
       className={cn(
         "fixed bottom-0 left-0 right-0 border-t py-2 transition-colors duration-200",
-        isScrolling && lastScrollY > 0 
-          ? "bg-background/30 backdrop-blur supports-[backdrop-filter]:bg-background/30" 
+        isScrolling && lastScrollY > 0
+          ? "bg-background/30 backdrop-blur supports-[backdrop-filter]:bg-background/30"
           : "bg-background",
         className
       )}
@@ -72,7 +60,9 @@ export function BottomNav({ className }: { className?: string }) {
               <Icon
                 className={cn(
                   "h-5 w-5",
-                  pathname === item.href ? "text-primary" : "text-muted-foreground"
+                  pathname === item.href
+                    ? "text-primary"
+                    : "text-muted-foreground"
                 )}
               />
               <span className="text-xs mt-1">{item.label}</span>

@@ -23,6 +23,9 @@ import { useSession } from "@/app/auth/session-provider";
 import { useRouter } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
 
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
+
 const TABS = [
   { id: "posts", label: "投稿" },
   { id: "replies", label: "返信" },

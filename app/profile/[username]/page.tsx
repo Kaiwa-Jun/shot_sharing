@@ -3,6 +3,9 @@ import { ProfileContent } from "@/components/profile-content";
 import { notFound } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
 
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
+
 // Define the static paths that will be pre-rendered
 export async function generateStaticParams() {
   // Create a Set to ensure unique usernames

@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   description: "A beautiful platform for photographers to share their work",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {

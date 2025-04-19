@@ -62,6 +62,9 @@ const item = {
   },
 };
 
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
+
 export default function SearchPage() {
   return (
     <div className="container mx-auto py-8">

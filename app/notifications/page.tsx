@@ -2,6 +2,10 @@
 
 import { Bell, Heart, MessageCircle, UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
+import { formatDistanceToNow } from "date-fns";
+
+// 動的レンダリングを強制する
+export const dynamic = "force-dynamic";
 
 const MOCK_NOTIFICATIONS = [
   {
@@ -27,7 +31,7 @@ const MOCK_NOTIFICATIONS = [
     time: "1 day ago",
     message: "started following you",
     icon: UserPlus,
-  }
+  },
 ];
 
 const container = {
@@ -35,42 +39,42 @@ const container = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { 
-    opacity: 1, 
+  show: {
+    opacity: 1,
     y: 0,
     transition: {
       type: "spring",
       stiffness: 300,
-      damping: 30
-    }
-  }
+      damping: 30,
+    },
+  },
 };
 
 export default function NotificationsPage() {
   return (
     <div className="container mx-auto py-8">
       <div className="max-w-2xl mx-auto">
-        <motion.h1 
+        <motion.h1
           className="text-3xl font-bold mb-6 flex items-center gap-2"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{
             type: "spring",
             stiffness: 300,
-            damping: 30
+            damping: 30,
           }}
         >
           <Bell className="h-8 w-8" />
           Notifications
         </motion.h1>
-        <motion.div 
+        <motion.div
           className="space-y-4"
           variants={container}
           initial="hidden"
@@ -91,8 +95,7 @@ export default function NotificationsPage() {
                 </div>
                 <div className="flex-1">
                   <p className="text-sm">
-                    <span className="font-semibold">{notification.user}</span>
-                    {" "}
+                    <span className="font-semibold">{notification.user}</span>{" "}
                     {notification.message}
                   </p>
                   <p className="text-sm text-muted-foreground">
