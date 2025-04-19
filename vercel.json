@@ -20,5 +20,9 @@
         }
       ]
     }
-  ]
+  ],
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://lzebwxstobynhpyfbger.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx6ZWJ3eHN0b2J5bmhweWZiZ2VyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ5MDM2MjcsImV4cCI6MjA2MDQ3OTYyN30.rOw-4WHV13uG3VLPPe1fP9vSjoOxvThwl-ZQ8vtB-SI"
+  }
 }
