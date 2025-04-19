@@ -1,6 +1,11 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface InputDialogProps {
@@ -18,11 +23,11 @@ export function InputDialog({
   title,
   value,
   onSave,
-  multiline = false
+  multiline = false,
 }: InputDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] p-0" closeButton={false}>
+      <DialogContent className="sm:max-w-[425px] p-0">
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="text-center">{title}</DialogTitle>
         </DialogHeader>
@@ -42,10 +47,7 @@ export function InputDialog({
           )}
         </div>
         <div className="flex justify-end gap-2 p-4 border-t">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             キャンセル
           </Button>
           <Button

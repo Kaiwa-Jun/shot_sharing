@@ -29,6 +29,7 @@ import { useSession } from "@/app/auth/session-provider";
 
 interface PostCardProps {
   post: Post;
+  isDetail?: boolean;
 }
 
 export function PostCard({ post }: PostCardProps) {

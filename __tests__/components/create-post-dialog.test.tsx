@@ -4,6 +4,7 @@ import { CreatePostDialog } from "@/components/create-post-dialog";
 import { ToastProvider } from "@/components/ui/toast";
 import { useSession } from "@/app/auth/session-provider";
 import { usePostsContext } from "@/lib/contexts/posts-context";
+import userEvent from "@testing-library/user-event";
 
 // Screen型を拡張
 declare global {
@@ -31,18 +32,39 @@ jest.mock("@/lib/contexts/posts-context", () => ({
   usePostsContext: jest.fn(),
 }));
 
-// fetchのモック
-global.fetch = jest.fn(() =>
-  Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve({ data: { id: "test-post-id" } }),
-    status: 201,
-  })
-) as jest.Mock;
+jest.mock("exifr", () => ({
+  parse: jest.fn().mockResolvedValue({}),
+}));
 
-// URL.createObjectURLのモック
-URL.createObjectURL = jest.fn(() => "mock-url") as jest.Mock;
-URL.revokeObjectURL = jest.fn();
+jest.mock("exif-js", () => ({
+  getData: jest.fn((file, callback) => callback()),
+  getAllTags: jest.fn(() => ({})),
+  getTag: jest.fn(),
+}));
+
+// グローバルモック
+global.fetch = jest.fn();
+global.URL.createObjectURL = jest.fn(() => "mock-url");
+global.URL.revokeObjectURL = jest.fn();
+
+// FileReader モック
+global.FileReader = class FileReader {
+  onloadend?: () => void;
+  result?: string;
+
+  static readonly EMPTY = 0;
+  static readonly LOADING = 1;
+  static readonly DONE = 2;
+
+  readAsDataURL() {
+    setTimeout(() => {
+      if (this.onloadend) {
+        this.result = "data:image/jpeg;base64,mock-base64";
+        this.onloadend();
+      }
+    }, 0);
+  }
+} as unknown as typeof FileReader;
 
 // acceptプロパティに基づいて要素を検索するカスタムクエリ
 function getByAcceptValue(
@@ -64,27 +86,44 @@ beforeAll(() => {
     getByAcceptValue(document.body, accept);
 });
 
-describe("CreatePostDialog", () => {
-  // 各テスト前にモックをセットアップ
-  beforeEach(() => {
-    // セッションモックの設定
-    (useSession as jest.Mock).mockReturnValue({
-      authUser: { id: "auth-user-id", email: "test@example.com" },
-      dbUser: { id: "db-user-id" },
-    });
+// ファイル入力テスト用のカスタムクエリ
+function queryByFileInput(): HTMLInputElement | null {
+  return document.querySelector(
+    'input[type="file"]'
+  ) as HTMLInputElement | null;
+}
 
-    // 投稿コンテキストモックの設定
-    (usePostsContext as jest.Mock).mockReturnValue({
-      addNewPost: jest.fn(),
-      refreshPosts: jest.fn(),
-    });
+// テストセットアップ関数
+function setupTest() {
+  // Session モック
+  (useSession as jest.Mock).mockReturnValue({
+    authUser: { id: "mock-user-id", email: "user@example.com" },
+    dbUser: { id: "mock-db-user-id" },
   });
 
-  // 各テスト後にモックをリセット
-  afterEach(() => {
+  // PostsContext モック
+  (usePostsContext as jest.Mock).mockReturnValue({
+    addNewPost: jest.fn(),
+    refreshPosts: jest.fn(),
+  });
+
+  // Fetch モック
+  (global.fetch as jest.Mock).mockResolvedValue({
+    ok: true,
+    status: 201,
+    json: jest.fn().mockResolvedValue({
+      data: { id: "mock-post-id" },
+    }),
+  });
+}
+
+describe("CreatePostDialog", () => {
+  beforeEach(() => {
+    setupTest();
     jest.clearAllMocks();
   });
 
+  // ダイアログレンダリングのテスト
   it("ダイアログが正しくレンダリングされること", () => {
     render(
       <ToastProvider>
@@ -102,6 +141,7 @@ describe("CreatePostDialog", () => {
     expect(screen.getByText("投稿")).toBeInTheDocument();
   });
 
+  // 画像のアップロードと説明の入力ができることをテスト
   it("画像のアップロードと説明の入力ができること", async () => {
     render(
       <ToastProvider>
@@ -109,85 +149,137 @@ describe("CreatePostDialog", () => {
       </ToastProvider>
     );
 
-    // 画像ファイルのモック
-    const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
+    // ファイル入力の取得
+    const fileInput = queryByFileInput();
+    expect(fileInput).toBeInTheDocument();
 
-    // ファイル入力要素を取得
-    const fileInput = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
-    expect(fileInput).not.toBeNull();
+    // 画像ファイルの作成とアップロード
+    const file = new File(["dummy content"], "test.jpg", {
+      type: "image/jpeg",
+    });
+    if (fileInput) {
+      fireEvent.change(fileInput, { target: { files: [file] } });
+    }
 
-    // ファイル選択をシミュレート
-    fireEvent.change(fileInput, { target: { files: [file] } });
-
-    // 説明テキストの入力をシミュレート
+    // 説明入力
     const descriptionInput = screen.getByPlaceholderText("説明を入力...");
     fireEvent.change(descriptionInput, { target: { value: "テスト投稿です" } });
 
-    // 入力値が反映されていることを確認
+    // 入力値の確認
+    expect((descriptionInput as HTMLTextAreaElement).value).toBe(
+      "テスト投稿です"
+    );
+
+    // 画像が表示されることを確認
     await waitFor(() => {
-      expect(descriptionInput).toHaveValue("テスト投稿です");
+      const image = screen.getByAltText("Preview");
+      expect(image).toBeInTheDocument();
     });
   });
 
+  // フォーム送信が正しく動作することをテスト
   it("フォーム送信が正しく動作すること", async () => {
-    const onChangeMock = jest.fn();
-    const onSuccessMock = jest.fn();
+    const mockOnOpenChange = jest.fn();
+    const user = userEvent.setup();
 
-    // APIモックをセットアップ
-    jest.spyOn(global, "fetch").mockResolvedValueOnce({
+    // fetchのモックを設定
+    (global.fetch as jest.Mock).mockResolvedValue({
       ok: true,
       status: 201,
-      json: jest.fn().mockResolvedValue({ data: { id: "test-post-id" } }),
-    } as unknown as Response);
+      json: jest.fn().mockResolvedValue({
+        data: { id: "test-post-id" },
+      }),
+      blob: jest
+        .fn()
+        .mockResolvedValue(new Blob(["dummy"], { type: "image/jpeg" })),
+    });
 
     render(
       <ToastProvider>
-        <CreatePostDialog
-          open={true}
-          onOpenChange={onChangeMock}
-          onSuccess={onSuccessMock}
-        />
+        <CreatePostDialog open={true} onOpenChange={mockOnOpenChange} />
       </ToastProvider>
     );
 
-    // 画像ファイルのモック
-    const file = new File(["test"], "test.jpg", { type: "image/jpeg" });
+    // ファイル入力
+    const fileInput = queryByFileInput();
+    expect(fileInput).toBeInTheDocument();
 
-    // ファイル入力要素を取得
-    const fileInput = document.querySelector(
-      'input[type="file"]'
-    ) as HTMLInputElement;
-    expect(fileInput).not.toBeNull();
+    const file = new File(["dummy content"], "test.jpg", {
+      type: "image/jpeg",
+    });
 
-    // ファイル選択をシミュレート
-    fireEvent.change(fileInput, { target: { files: [file] } });
+    await waitFor(() => {
+      expect(fileInput).not.toBeNull();
+    });
 
-    // 説明テキストの入力をシミュレート
+    if (fileInput) {
+      fireEvent.change(fileInput as HTMLInputElement, {
+        target: { files: [file] },
+      });
+    }
+
+    // 説明入力
     const descriptionInput = screen.getByPlaceholderText("説明を入力...");
-    fireEvent.change(descriptionInput, { target: { value: "テスト投稿です" } });
+    await user.type(descriptionInput, "テスト投稿です");
 
-    // テストが成功したことを確認
-    expect(true).toBe(true);
+    // 送信ボタンをクリック
+    const submitButton = screen.getByRole("button", { name: "投稿" });
+    expect(submitButton).toBeInTheDocument();
+    expect(submitButton).not.toBeDisabled();
+
+    await user.click(submitButton);
+
+    // ダイアログが閉じられることを確認
+    await waitFor(
+      () => {
+        expect(mockOnOpenChange).toHaveBeenCalledWith(false);
+      },
+      { timeout: 3000 }
+    );
+
+    // 投稿APIが呼ばれたことを確認
+    expect(global.fetch).toHaveBeenCalledWith("/api/posts", expect.any(Object));
   });
 
-  it("画像なしでは投稿できないこと", async () => {
+  // バリデーションのテスト
+  it("画像がない場合は投稿ボタンが無効化されること", () => {
     render(
       <ToastProvider>
         <CreatePostDialog open={true} onOpenChange={jest.fn()} />
       </ToastProvider>
     );
 
-    // 投稿ボタンが無効になっていることを確認
-    const submitButton = screen.getByText("投稿");
+    const submitButton = screen.getByRole("button", { name: "投稿" });
     expect(submitButton).toBeDisabled();
+  });
 
-    // 説明だけ入力
-    const descriptionInput = screen.getByPlaceholderText("説明を入力...");
-    fireEvent.change(descriptionInput, { target: { value: "テスト投稿です" } });
+  it("画像がアップロードされると投稿ボタンが有効になること", async () => {
+    render(
+      <ToastProvider>
+        <CreatePostDialog open={true} onOpenChange={jest.fn()} />
+      </ToastProvider>
+    );
 
-    // 画像なしではまだ無効
-    expect(submitButton).toBeDisabled();
+    // スクリーンからテキスト「クリックして画像をアップロード」を探し、その近くのinput要素を取得
+    const uploadText = screen.getByText("クリックして画像をアップロード");
+    const fileInput = uploadText
+      .closest("div")
+      ?.parentElement?.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).not.toBeNull();
+
+    const file = new File(["dummy content"], "example.jpg", {
+      type: "image/jpeg",
+    });
+
+    if (fileInput) {
+      // TypeScriptのNull検査を通過
+      userEvent.upload(fileInput, file);
+
+      // 投稿ボタンが有効になることを確認
+      const submitButton = screen.getByText("投稿");
+      await waitFor(() => {
+        expect(submitButton).not.toBeDisabled();
+      });
+    }
   });
 });

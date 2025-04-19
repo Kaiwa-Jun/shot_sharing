@@ -1,12 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, MapPin, Calendar, Instagram, Twitter, Link as LinkIcon } from "lucide-react";
+import {
+  Camera,
+  MapPin,
+  Calendar,
+  Instagram,
+  Twitter,
+  Link as LinkIcon,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/post-card";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { Post } from "@/lib/supabase/types";
+import { User } from "@/lib/mock-data";
 
 const TABS = [
   { id: "posts", label: "投稿" },
@@ -20,31 +29,36 @@ const container = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { 
-    opacity: 1, 
+  show: {
+    opacity: 1,
     y: 0,
     transition: {
       type: "spring",
       stiffness: 300,
-      damping: 30
-    }
-  }
+      damping: 30,
+    },
+  },
 };
 
-export function ProfileContent({ user, posts }) {
+interface ProfileContentProps {
+  user: User;
+  posts: Post[];
+}
+
+export function ProfileContent({ user, posts }: ProfileContentProps) {
   const [activeTab, setActiveTab] = useState("posts");
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
       {/* Cover Image */}
-      <motion.div 
+      <motion.div
         className="relative h-48 bg-gradient-to-r from-blue-400 to-blue-600"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -57,7 +71,7 @@ export function ProfileContent({ user, posts }) {
 
       {/* Profile Header */}
       <div className="relative px-4">
-        <motion.div 
+        <motion.div
           className="absolute -top-16 left-4"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -65,7 +79,7 @@ export function ProfileContent({ user, posts }) {
             type: "spring",
             stiffness: 300,
             damping: 30,
-            delay: 0.2
+            delay: 0.2,
           }}
         >
           <div className="relative">
@@ -78,8 +92,8 @@ export function ProfileContent({ user, posts }) {
             </div>
           </div>
         </motion.div>
-        
-        <motion.div 
+
+        <motion.div
           className="pt-20 pb-4"
           variants={container}
           initial="hidden"
@@ -96,21 +110,15 @@ export function ProfileContent({ user, posts }) {
 
           <motion.div variants={item} className="mt-4 space-y-4">
             <p>{user.bio}</p>
-            
+
             <div className="space-y-2 text-muted-foreground">
-              <motion.div 
-                className="flex items-center gap-2"
-                variants={item}
-              >
+              <motion.div className="flex items-center gap-2" variants={item}>
                 <MapPin className="h-4 w-4" />
                 <span>{user.location}</span>
               </motion.div>
-              
+
               {user.url && (
-                <motion.div 
-                  className="flex items-center gap-2"
-                  variants={item}
-                >
+                <motion.div className="flex items-center gap-2" variants={item}>
                   <LinkIcon className="h-4 w-4" />
                   <a href={user.url} className="text-primary hover:underline">
                     {user.url}
@@ -118,10 +126,7 @@ export function ProfileContent({ user, posts }) {
                 </motion.div>
               )}
 
-              <motion.div 
-                className="flex items-center gap-4"
-                variants={item}
-              >
+              <motion.div className="flex items-center gap-4" variants={item}>
                 <a
                   href={`https://twitter.com/${user.twitter}`}
                   target="_blank"
@@ -141,22 +146,23 @@ export function ProfileContent({ user, posts }) {
               </motion.div>
             </div>
 
-            <motion.div 
-              className="flex gap-4"
-              variants={item}
-            >
+            <motion.div className="flex gap-4" variants={item}>
               <Link
                 href={`/profile/${user.username}/connections?tab=following`}
                 className="hover:underline"
               >
-                <span className="font-semibold">{user.following.toLocaleString()}</span>
+                <span className="font-semibold">
+                  {user.following.toLocaleString()}
+                </span>
                 <span className="text-muted-foreground ml-1">フォロー中</span>
               </Link>
               <Link
                 href={`/profile/${user.username}/connections?tab=followers`}
                 className="hover:underline"
               >
-                <span className="font-semibold">{user.followers.toLocaleString()}</span>
+                <span className="font-semibold">
+                  {user.followers.toLocaleString()}
+                </span>
                 <span className="text-muted-foreground ml-1">フォロワー</span>
               </Link>
             </motion.div>
@@ -178,17 +184,20 @@ export function ProfileContent({ user, posts }) {
                 {tab.label}
               </button>
             ))}
-            <motion.div 
+            <motion.div
               className="absolute bottom-0 h-1 bg-primary"
               initial={false}
               animate={{
-                left: `${(TABS.findIndex(tab => tab.id === activeTab) * 100) / TABS.length}%`,
-                width: `${100 / TABS.length}%`
+                left: `${
+                  (TABS.findIndex((tab) => tab.id === activeTab) * 100) /
+                  TABS.length
+                }%`,
+                width: `${100 / TABS.length}%`,
               }}
               transition={{
                 type: "spring",
                 stiffness: 400,
-                damping: 30
+                damping: 30,
               }}
             />
           </div>
@@ -196,7 +205,7 @@ export function ProfileContent({ user, posts }) {
 
         {/* Content */}
         <AnimatePresence mode="wait">
-          <motion.div 
+          <motion.div
             key={activeTab}
             className="mt-4 space-y-4"
             initial={{ opacity: 0, y: 20 }}
@@ -205,15 +214,16 @@ export function ProfileContent({ user, posts }) {
             transition={{
               type: "spring",
               stiffness: 300,
-              damping: 30
+              damping: 30,
             }}
           >
-            {activeTab === "posts" && posts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
-            {(activeTab === "replies" || activeTab === "media" || activeTab === "likes") && (
+            {activeTab === "posts" &&
+              posts.map((post) => <PostCard key={post.id} post={post} />)}
+            {(activeTab === "replies" ||
+              activeTab === "media" ||
+              activeTab === "likes") && (
               <div className="py-8 text-center text-muted-foreground">
-                まだ{TABS.find(t => t.id === activeTab)?.label}はありません
+                まだ{TABS.find((t) => t.id === activeTab)?.label}はありません
               </div>
             )}
           </motion.div>

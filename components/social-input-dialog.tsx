@@ -1,6 +1,11 @@
 "use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 interface SocialInputDialogProps {
@@ -15,13 +20,13 @@ const SOCIAL_CONFIG = {
   instagram: {
     title: "Instagram",
     prefix: "www.instagram.com/",
-    placeholder: "ユーザーネーム"
+    placeholder: "ユーザーネーム",
   },
   twitter: {
     title: "X (Twitter)",
     prefix: "x.com/",
-    placeholder: "ユーザーネーム"
-  }
+    placeholder: "ユーザーネーム",
+  },
 };
 
 export function SocialInputDialog({
@@ -29,13 +34,13 @@ export function SocialInputDialog({
   onOpenChange,
   type,
   value,
-  onSave
+  onSave,
 }: SocialInputDialogProps) {
   const config = SOCIAL_CONFIG[type];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] p-0" closeButton={false}>
+      <DialogContent className="sm:max-w-[425px] p-0">
         <DialogHeader className="p-4 border-b">
           <DialogTitle className="text-center">{config.title}</DialogTitle>
         </DialogHeader>
@@ -53,10 +58,7 @@ export function SocialInputDialog({
           </div>
         </div>
         <div className="flex justify-end gap-2 p-4 border-t">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             キャンセル
           </Button>
           <Button

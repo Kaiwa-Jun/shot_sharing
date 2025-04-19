@@ -21,6 +21,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/app/auth/session-provider";
 import { useRouter } from "next/navigation";
+import { Post } from "@/lib/supabase/types";
 
 const TABS = [
   { id: "posts", label: "投稿" },
@@ -30,10 +31,27 @@ const TABS = [
 ];
 
 // 一時的にモック投稿を使用 - 将来的にはAPIから取得
-const LIKED_POSTS = generateMockPosts(3, 10).map((post) => ({
-  ...post,
-  isLiked: true,
-}));
+const LIKED_POSTS = generateMockPosts(3, 10).map((post) => {
+  return {
+    id: post.id,
+    userId: "mock-user-id",
+    imageUrl: post.imageUrl,
+    shutterSpeed: post.shutterSpeed,
+    iso: post.iso,
+    aperture: post.aperture,
+    latitude: null,
+    longitude: null,
+    createdAt: post.createdAt,
+    User: {
+      id: "mock-user-id",
+      email: `${post.user.username}@example.com`,
+      instagramUrl: null,
+      twitterUrl: null,
+    },
+    Like: [],
+    userLiked: true,
+  };
+});
 
 const container = {
   hidden: { opacity: 0 },
@@ -80,7 +98,26 @@ export default function ProfilePage() {
   }, [isLoading, authUser, router]);
 
   // 一時的にモック投稿を使用 - 将来的にはAPIから取得
-  const posts = generateMockPosts(3, 0);
+  const mockPosts = generateMockPosts(3, 0);
+  const posts = mockPosts.map((post) => ({
+    id: post.id,
+    userId: "mock-user-id",
+    imageUrl: post.imageUrl,
+    shutterSpeed: post.shutterSpeed,
+    iso: post.iso,
+    aperture: post.aperture,
+    latitude: null,
+    longitude: null,
+    createdAt: post.createdAt,
+    User: {
+      id: "mock-user-id",
+      email: `${post.user.username}@example.com`,
+      instagramUrl: null,
+      twitterUrl: null,
+    },
+    Like: [],
+    userLiked: false,
+  }));
 
   const handleProfileSave = async (updatedProfile: any) => {
     if (!dbUser) return;

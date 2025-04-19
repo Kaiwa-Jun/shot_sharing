@@ -5,13 +5,14 @@ const nextConfig = {
   },
   images: {
     domains: ["lh3.googleusercontent.com"], // Google認証用に追加
-    unoptimized: false,
+    unoptimized: true,
   },
   webpack: (config) => {
     // Disable cache for both server and client builds
     config.cache = false;
     return config;
   },
+  output: "standalone",
 };
 
 module.exports = nextConfig;

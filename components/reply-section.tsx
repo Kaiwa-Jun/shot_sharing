@@ -171,14 +171,18 @@ export function ReplySection({
   }, [postId]);
 
   const handleSubmit = (text: string) => {
-    const newReply: Reply = {
+    const newReply: Comment = {
       id: Date.now().toString(),
-      text,
-      createdAt: new Date(),
-      user: {
-        name: "じゅん@Webエンジニア",
-        avatar:
-          "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=faces",
+      content: text,
+      userId: "mock-user-id",
+      postId: postId,
+      parentId: null,
+      createdAt: new Date().toISOString(),
+      User: {
+        id: "mock-user-id",
+        email: "user@example.com",
+        instagramUrl: null,
+        twitterUrl: null,
       },
     };
 

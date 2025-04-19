@@ -9,18 +9,18 @@ export const syncUserWithDatabase = async () => {
 
   if (!user) return null;
 
+  // emailがない場合は処理しない
+  if (!user.email) return null;
+
   // Prismaデータベースでユーザーを検索または作成
   const dbUser = await prisma.user.upsert({
     where: { id: user.id },
     update: {
       email: user.email,
-      lastSignInAt: new Date(),
     },
     create: {
       id: user.id,
       email: user.email,
-      createdAt: new Date(),
-      lastSignInAt: new Date(),
     },
   });
 

@@ -5,25 +5,28 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PostCard } from "@/components/post-card";
 import { motion } from "framer-motion";
+import { Post } from "@/lib/supabase/types";
 
-const TRENDING_POSTS = [
+// トレンド投稿のモックデータをPost型に合わせて定義
+const TRENDING_POSTS: Post[] = [
   {
     id: "1",
+    userId: "user-1",
     imageUrl: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e",
-    user: {
-      name: "鈴木 大輔",
-      username: "daisuke_s",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e",
-    },
-    description: "富士山の朝焼け",
     shutterSpeed: "1/250",
     iso: 200,
     aperture: 8,
-    location: "山中湖",
-    shootingDate: "2024/3/18",
-    likes: 156,
-    comments: 8,
+    latitude: null,
+    longitude: null,
     createdAt: "2024-03-18T05:30:00Z",
+    User: {
+      id: "user-1",
+      email: "daisuke_s@example.com",
+      instagramUrl: null,
+      twitterUrl: null,
+    },
+    Like: [],
+    userLiked: false,
   },
 ];
 
@@ -41,22 +44,22 @@ const container = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 };
 
 const item = {
   hidden: { opacity: 0, y: 20 },
-  show: { 
-    opacity: 1, 
+  show: {
+    opacity: 1,
     y: 0,
     transition: {
       type: "spring",
       stiffness: 300,
-      damping: 30
-    }
-  }
+      damping: 30,
+    },
+  },
 };
 
 export default function SearchPage() {
@@ -69,15 +72,12 @@ export default function SearchPage() {
           transition={{
             type: "spring",
             stiffness: 300,
-            damping: 30
+            damping: 30,
           }}
           className="relative"
         >
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-5 w-5" />
-          <Input
-            placeholder="キーワードで検索..."
-            className="pl-10"
-          />
+          <Input placeholder="キーワードで検索..." className="pl-10" />
         </motion.div>
 
         <motion.div
@@ -85,7 +85,7 @@ export default function SearchPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
         >
-          <motion.h2 
+          <motion.h2
             className="text-xl font-semibold mb-4"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -93,7 +93,7 @@ export default function SearchPage() {
           >
             カテゴリー
           </motion.h2>
-          <motion.div 
+          <motion.div
             className="grid grid-cols-2 sm:grid-cols-3 gap-4"
             variants={container}
             initial="hidden"
@@ -124,7 +124,7 @@ export default function SearchPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <motion.h2 
+          <motion.h2
             className="text-xl font-semibold mb-4"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
