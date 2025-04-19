@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/app/auth/session-provider";
+import { usePostsContext } from "@/lib/contexts/posts-context";
 import exifr from "exifr";
 import EXIF from "exif-js";
 import heic2any from "heic2any";
@@ -95,6 +96,7 @@ export function CreatePostDialog({
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const { authUser, dbUser } = useSession();
+  const { addNewPost, refreshPosts } = usePostsContext();
 
   // 画像アップロード処理
   const handleImageUpload = async (file: File) => {
@@ -388,18 +390,19 @@ export function CreatePostDialog({
       // ダイアログを閉じる
       onOpenChange(false);
 
+      // 新しい投稿をコンテキストに追加
+      if (result.data) {
+        console.log("投稿成功時のデータをコンテキストに追加:", result.data);
+        addNewPost(result.data);
+        // フィード全体を更新
+        refreshPosts();
+      }
+
       // 成功コールバックがあれば呼び出す
       if (onSuccess && result.data) {
         console.log("投稿成功時のレスポンスデータ:", result.data);
-        // 確実に投稿データを渡す
         onSuccess(result.data);
       }
-
-      // 2秒後にページをリロード（UIの更新を待つ）
-      setTimeout(() => {
-        console.log("ページを更新します...");
-        window.location.reload();
-      }, 100);
     } catch (err) {
       console.error("Error submitting post:", err);
       setError(err instanceof Error ? err.message : "投稿に失敗しました");
@@ -564,6 +567,15 @@ export function CreatePostDialog({
                         </div>
                       </div>
                     )}
+                    {/* 位置情報がない場合のメッセージ */}
+                    {!exifData.location &&
+                      (!exifData.latitude || !exifData.longitude) && (
+                        <div className="col-span-2 text-center">
+                          <div className="text-sm text-amber-600 bg-amber-50 p-2 rounded">
+                            この画像には位置情報が含まれていません
+                          </div>
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
