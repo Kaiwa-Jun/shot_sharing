@@ -2,7 +2,12 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const dynamic = "force-dynamic";
+// dynamic設定を削除して、エッジランタイムを設定
+export const runtime = "edge";
+
+// 共通のキャッシュ設定を定義
+const CACHE_DURATION = 10; // 秒単位
+const STALE_WHILE_REVALIDATE = 59; // 秒単位
 
 export async function GET(request: Request) {
   try {
@@ -15,6 +20,9 @@ export async function GET(request: Request) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
     const followedOnly = searchParams.get("followedOnly") === "true";
 
+    // ユーザー認証が必要な場合はキャッシュしない
+    let shouldCache = true;
+
     // ページネーション用のオフセットを計算
     const offset = (page - 1) * limit;
 
@@ -25,6 +33,11 @@ export async function GET(request: Request) {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+
+    // ユーザー固有のコンテンツを取得する場合はキャッシュしない
+    if (user || followedOnly) {
+      shouldCache = false;
+    }
 
     let query = supabase.from("Post").select(`
         *,
@@ -94,11 +107,25 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json({
+    // レスポンスを作成
+    const response = {
       data: postsWithLikeStatus,
       cursor: nextCursor,
       hasMore,
-    });
+    };
+
+    // キャッシュヘッダーを設定
+    const headers: HeadersInit = {};
+
+    if (shouldCache) {
+      headers[
+        "Cache-Control"
+      ] = `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate=${STALE_WHILE_REVALIDATE}`;
+    } else {
+      headers["Cache-Control"] = "no-store, must-revalidate";
+    }
+
+    return NextResponse.json(response, { headers });
   } catch (error) {
     console.error("Error fetching posts:", error);
     return NextResponse.json(
