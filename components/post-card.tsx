@@ -36,23 +36,40 @@ interface PostCardProps {
 export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
-  const [isLiked, setIsLiked] = useState(post.userLiked || false);
-  const [likeCount, setLikeCount] = useState(post.Like?.length || 0);
+  const [isLiked, setIsLiked] = useState(post?.userLiked || false);
+  const [likeCount, setLikeCount] = useState(post?.Like?.length || 0);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
   const { authUser, dbUser } = useSession();
 
-  // コンポーネントマウント時に投稿データの構造をコンソールに出力
-  useEffect(() => {
-    console.log("Post User Data:", post.User);
-    console.log("Auth User Data:", authUser);
+  // nullチェックを追加
+  if (!post) {
+    return null;
+  }
 
-    // 投稿者のメールアドレスとログインユーザーのメールアドレスを比較
-    const postUserEmail = post.User?.email;
-    const authUserEmail = authUser?.email;
-    console.log("Post User Email:", postUserEmail);
-    console.log("Auth User Email:", authUserEmail);
-    console.log("Is Same User:", postUserEmail === authUserEmail);
-  }, [post, authUser]);
+  // ユーザー情報を取得
+  const userId = post.User?.id || post.userId;
+  const userEmail = post.User?.email;
+
+  // 投稿者のメールアドレスとログインユーザーのメールアドレスが一致するか確認
+  // IDではなくメールアドレスで比較（画像から見るとこちらの方が確実）
+  const isCurrentUser = authUser?.email === userEmail;
+
+  // アバターURLを取得
+  let avatarUrl: string | undefined;
+
+  if (isCurrentUser && authUser) {
+    // 現在のユーザーが投稿者の場合、authUserのメタデータから直接取得
+    avatarUrl =
+      authUser.user_metadata?.avatar_url ||
+      authUser.user_metadata?.picture ||
+      dbUser?.avatarUrl;
+  } else {
+    // 他のユーザーの場合、投稿データからアバターURLを取得
+    // または、Dicebearのプレースホルダーを使用
+    avatarUrl = userId
+      ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+      : undefined;
+  }
 
   // 投稿の詳細ページに移動
   const handleCardClick = () => {
@@ -109,31 +126,6 @@ export function PostCard({ post }: PostCardProps) {
     e.stopPropagation();
     // 削除機能は未実装
   };
-
-  // ユーザー情報を取得
-  const userId = post.User?.id || post.userId;
-  const userEmail = post.User?.email;
-
-  // 投稿者のメールアドレスとログインユーザーのメールアドレスが一致するか確認
-  // IDではなくメールアドレスで比較（画像から見るとこちらの方が確実）
-  const isCurrentUser = authUser?.email === userEmail;
-
-  // アバターURLを取得
-  let avatarUrl: string | undefined;
-
-  if (isCurrentUser && authUser) {
-    // 現在のユーザーが投稿者の場合、authUserのメタデータから直接取得
-    avatarUrl =
-      authUser.user_metadata?.avatar_url ||
-      authUser.user_metadata?.picture ||
-      dbUser?.avatarUrl;
-  } else {
-    // 他のユーザーの場合、投稿データからアバターURLを取得
-    // または、Dicebearのプレースホルダーを使用
-    avatarUrl = userId
-      ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
-      : undefined;
-  }
 
   return (
     <Card

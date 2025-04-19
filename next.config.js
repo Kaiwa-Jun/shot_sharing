@@ -19,8 +19,13 @@ const nextConfig = {
   experimental: {
     // SSRのみを使用するように設定
     disableOptimizedLoading: true,
-    // appDirのページをすべて動的レンダリングに設定
-    appDir: true,
+  },
+  // 環境変数を設定して、サーバーサイドとクライアントサイドのレンダリングを区別
+  env: {
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV || "development",
+    NEXT_PUBLIC_SITE_URL: process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000",
   },
 };
 

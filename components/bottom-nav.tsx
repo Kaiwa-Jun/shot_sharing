@@ -21,21 +21,31 @@ export function BottomNav({ className }: { className?: string }) {
   const [prevScrollY, setPrevScrollY] = useState(0);
   const [visible, setVisible] = useState(true);
 
+  // スクロール処理を安全に行うためのチェック
+  const safelyAccessScroll = useCallback(() => {
+    return isBrowser() && typeof window !== "undefined" ? window.scrollY : 0;
+  }, []);
+
   const handleScroll = useCallback(() => {
     if (!isBrowser()) return;
 
-    const currentScrollY = window.scrollY;
+    const currentScrollY = safelyAccessScroll();
     setVisible(prevScrollY > currentScrollY || currentScrollY < 10);
     setPrevScrollY(currentScrollY);
-  }, [prevScrollY]);
+  }, [prevScrollY, safelyAccessScroll]);
 
   useEffect(() => {
     if (!isBrowser()) return;
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    // 安全なイベントリスナー設定
+    try {
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      return () => {
+        window.removeEventListener("scroll", handleScroll);
+      };
+    } catch (e) {
+      console.error("Failed to set up scroll listener:", e);
+    }
   }, [handleScroll]);
 
   return (
