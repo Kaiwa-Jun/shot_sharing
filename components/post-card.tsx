@@ -1,10 +1,23 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -78,6 +91,18 @@ export function PostCard({ post }: PostCardProps) {
     // 後でトースト通知を追加する
   };
 
+  // 投稿を編集
+  const handleEditPost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // 編集機能は未実装
+  };
+
+  // 投稿を削除
+  const handleDeletePost = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // 削除機能は未実装
+  };
+
   // ユーザー情報を取得
   const userId = post.User?.id || post.userId;
   const userEmail = post.User?.email;
@@ -109,25 +134,68 @@ export function PostCard({ post }: PostCardProps) {
       onClick={handleCardClick}
     >
       <div className="p-4">
-        <div className="flex items-center gap-2 mb-4">
-          <Avatar>
-            <AvatarImage src={avatarUrl} alt="User Avatar" />
-            <AvatarFallback>
-              {userEmail ? userEmail.substring(0, 2).toUpperCase() : "UN"}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <p className="font-medium text-sm">
-              {isCurrentUser && authUser?.user_metadata?.full_name
-                ? authUser.user_metadata.full_name
-                : userEmail || "不明なユーザー"}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(post.createdAt), {
-                addSuffix: true,
-              })}
-            </p>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Avatar>
+              <AvatarImage src={avatarUrl} alt="User Avatar" />
+              <AvatarFallback>
+                {userEmail ? userEmail.substring(0, 2).toUpperCase() : "UN"}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="font-medium text-sm">
+                {isCurrentUser && authUser?.user_metadata?.full_name
+                  ? authUser.user_metadata.full_name
+                  : userEmail || "不明なユーザー"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(post.createdAt), {
+                  addSuffix: true,
+                })}
+              </p>
+            </div>
           </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">メニューを開く</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isCurrentUser && (
+                <>
+                  <DropdownMenuItem
+                    onClick={handleEditPost}
+                    className="flex justify-between"
+                  >
+                    <span>投稿の編集</span>
+                    <Edit className="ml-8 h-4 w-4" />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDeletePost}
+                    className="flex justify-between"
+                  >
+                    <span>投稿の削除</span>
+                    <Trash2 className="ml-8 h-4 w-4" />
+                  </DropdownMenuItem>
+                </>
+              )}
+              <DropdownMenuItem
+                onClick={handleShareClick}
+                className="flex justify-between"
+              >
+                <span>投稿の共有</span>
+                <Share2 className="ml-8 h-4 w-4" />
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -164,58 +232,51 @@ export function PostCard({ post }: PostCardProps) {
             </Button>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2"
-            onClick={handleShareClick}
-          >
-            <Share2 className="h-5 w-5" />
-          </Button>
-        </div>
-
-        {/* EXIF情報を下部にまとめて表示 */}
-        <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm mb-4">
-          <div className="grid grid-cols-2 gap-2">
-            {post.shutterSpeed && (
-              <div>
-                <div className="text-muted-foreground">シャッタースピード</div>
-                <div className="font-medium">{post.shutterSpeed}</div>
-              </div>
-            )}
-            {post.iso && (
-              <div>
-                <div className="text-muted-foreground">ISO</div>
-                <div className="font-medium">{post.iso}</div>
-              </div>
-            )}
-            {post.aperture && (
-              <div>
-                <div className="text-muted-foreground">絞り</div>
-                <div className="font-medium">f/{post.aperture}</div>
-              </div>
-            )}
-            {post.latitude && post.longitude && (
-              <div>
-                <div className="text-muted-foreground">位置情報</div>
-                <div className="font-medium">
-                  {post.latitude.toFixed(4)}, {post.longitude.toFixed(4)}
+          {/* EXIF情報を下部にまとめて表示 */}
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm mb-4">
+            <div className="grid grid-cols-2 gap-2">
+              {post.shutterSpeed && (
+                <div>
+                  <div className="text-muted-foreground">
+                    シャッタースピード
+                  </div>
+                  <div className="font-medium">{post.shutterSpeed}</div>
                 </div>
-              </div>
-            )}
+              )}
+              {post.iso && (
+                <div>
+                  <div className="text-muted-foreground">ISO</div>
+                  <div className="font-medium">{post.iso}</div>
+                </div>
+              )}
+              {post.aperture && (
+                <div>
+                  <div className="text-muted-foreground">絞り</div>
+                  <div className="font-medium">f/{post.aperture}</div>
+                </div>
+              )}
+              {post.latitude && post.longitude && (
+                <div>
+                  <div className="text-muted-foreground">位置情報</div>
+                  <div className="font-medium">
+                    {post.latitude.toFixed(4)}, {post.longitude.toFixed(4)}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
 
-        {showReplies && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <ReplySection postId={post.id} />
-          </motion.div>
-        )}
+          {showReplies && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ReplySection postId={post.id} />
+            </motion.div>
+          )}
+        </div>
       </div>
 
       <ReplyDialog
