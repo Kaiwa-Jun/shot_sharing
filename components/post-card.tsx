@@ -204,79 +204,73 @@ export function PostCard({ post }: PostCardProps) {
       </div>
 
       <div className="p-4">
-        <div className="flex justify-between mb-4">
-          <div className="flex gap-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-1 px-2"
-              onClick={handleLikeClick}
-            >
-              <Heart
-                className={cn(
-                  "h-5 w-5",
-                  isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
-                )}
-              />
-              <span>{likeCount}</span>
-            </Button>
+        <div className="flex gap-4 mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1 px-2"
+            onClick={handleLikeClick}
+          >
+            <Heart
+              className={cn(
+                "h-5 w-5",
+                isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+              )}
+            />
+            <span>{likeCount}</span>
+          </Button>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-1 px-2"
-              onClick={handleCommentClick}
-            >
-              <MessageCircle className="h-5 w-5" />
-              <span>0</span>
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex items-center gap-1 px-2"
+            onClick={handleCommentClick}
+          >
+            <MessageCircle className="h-5 w-5" />
+            <span>0</span>
+          </Button>
+        </div>
 
-          {/* EXIF情報を下部にまとめて表示 */}
-          <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm mb-4">
-            <div className="grid grid-cols-2 gap-2">
-              {post.shutterSpeed && (
-                <div>
-                  <div className="text-muted-foreground">
-                    シャッタースピード
-                  </div>
-                  <div className="font-medium">{post.shutterSpeed}</div>
-                </div>
-              )}
-              {post.iso && (
-                <div>
-                  <div className="text-muted-foreground">ISO</div>
-                  <div className="font-medium">{post.iso}</div>
-                </div>
-              )}
-              {post.aperture && (
-                <div>
-                  <div className="text-muted-foreground">絞り</div>
-                  <div className="font-medium">f/{post.aperture}</div>
-                </div>
-              )}
-              {post.latitude && post.longitude && (
-                <div>
-                  <div className="text-muted-foreground">位置情報</div>
-                  <div className="font-medium">
-                    {post.latitude.toFixed(4)}, {post.longitude.toFixed(4)}
-                  </div>
-                </div>
-              )}
+        {/* EXIF情報をまとめて表示 */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
+          {post.shutterSpeed && (
+            <div>
+              <div className="text-muted-foreground">シャッタースピード</div>
+              <div className="font-medium">{post.shutterSpeed}</div>
             </div>
-          </div>
-
-          {showReplies && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <ReplySection postId={post.id} />
-            </motion.div>
+          )}
+          {post.iso && (
+            <div>
+              <div className="text-muted-foreground">ISO</div>
+              <div className="font-medium">{post.iso}</div>
+            </div>
+          )}
+          {post.aperture && (
+            <div>
+              <div className="text-muted-foreground">絞り</div>
+              <div className="font-medium">f/{post.aperture}</div>
+            </div>
+          )}
+          {post.latitude && post.longitude && (
+            <div>
+              <div className="text-muted-foreground">位置情報</div>
+              <div className="font-medium">
+                {post.latitude.toFixed(4)}, {post.longitude.toFixed(4)}
+              </div>
+            </div>
           )}
         </div>
+
+        {showReplies && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ReplySection postId={post.id} />
+          </motion.div>
+        )}
       </div>
 
       <ReplyDialog
