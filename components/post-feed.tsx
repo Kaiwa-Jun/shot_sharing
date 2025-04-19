@@ -6,91 +6,105 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import { motion, AnimatePresence } from "framer-motion";
 import { Post } from "@/lib/supabase/types";
 import { usePostsContext } from "@/lib/contexts/posts-context";
+import useSWRInfinite from "swr/infinite";
 
 const POSTS_PER_PAGE = 10;
 
+// APIレスポンスの型定義
+interface PostsResponse {
+  data: Post[];
+  cursor: string | null;
+  hasMore: boolean;
+}
+
+// SWRのフェッチャー関数
+const fetcher = async (url: string): Promise<PostsResponse> => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error("Failed to fetch posts");
+  }
+  return response.json();
+};
+
 export function PostFeed() {
   const [mounted, setMounted] = useState(false);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [cursor, setCursor] = useState<string | null>(null);
   const { shouldRefresh, setShouldRefresh, newPosts, clearNewPosts } =
     usePostsContext();
 
-  // 投稿を取得する関数
-  const fetchPosts = async (newCursor?: string | null) => {
-    if (loading) return;
+  // SWRのキー生成関数
+  const getKey = (
+    pageIndex: number,
+    previousPageData: PostsResponse | null
+  ) => {
+    // 前のページがなかった場合は初回取得
+    if (pageIndex === 0) return `/api/posts?limit=${POSTS_PER_PAGE}`;
 
-    setLoading(true);
-    try {
-      // URLパラメータの構築
-      const params = new URLSearchParams();
-      params.append("limit", POSTS_PER_PAGE.toString());
-      if (newCursor) {
-        params.append("cursor", newCursor);
-      }
+    // 前のページがない、またはカーソルが存在しない場合は終了
+    if (!previousPageData || !previousPageData.cursor) return null;
 
-      // APIからデータを取得
-      const response = await fetch(`/api/posts?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch posts");
-      }
-
-      const data = await response.json();
-
-      if (newCursor) {
-        // 追加の投稿を読み込む場合
-        setPosts((prev) => [...prev, ...data.data]);
-      } else {
-        // 初回の読み込み
-        setPosts(data.data);
-      }
-
-      setCursor(data.cursor);
-      setHasMore(data.hasMore);
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-    } finally {
-      setLoading(false);
-    }
+    // 次のページのURLを返す
+    return `/api/posts?limit=${POSTS_PER_PAGE}&cursor=${previousPageData.cursor}`;
   };
+
+  // SWRInfiniteを使用してデータ取得
+  const { data, error, size, setSize, mutate } = useSWRInfinite<PostsResponse>(
+    getKey,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateFirstPage: false,
+    }
+  );
+
+  // データを整形
+  const isLoading = !data && !error;
+  const posts = data ? data.flatMap((page) => page.data) : [];
+  const hasMore = data ? data[data.length - 1]?.hasMore : true;
 
   useEffect(() => {
     setMounted(true);
-    fetchPosts();
   }, []);
 
   // 新規投稿や更新があったら再取得
   useEffect(() => {
     if (shouldRefresh) {
       console.log("投稿リストを更新します");
-      // 完全に最新データを取得するため、カーソルをリセット
-      setCursor(null);
-      fetchPosts();
+      mutate();
       setShouldRefresh(false);
     }
-  }, [shouldRefresh, setShouldRefresh]);
+  }, [shouldRefresh, setShouldRefresh, mutate]);
 
   // 新しい投稿をリストに追加
   useEffect(() => {
     if (newPosts && newPosts.length > 0) {
       console.log("新しい投稿をリストに追加します:", newPosts);
-      // 既存の投稿と重複がないようにマージ
-      const uniquePosts = [...newPosts, ...posts].filter(
-        (post, index, self) => index === self.findIndex((p) => p.id === post.id)
-      );
-      console.log("更新後の投稿リスト:", uniquePosts);
-      setPosts(uniquePosts);
+
+      // SWRのデータを更新（最初のページのみ）
+      mutate(async (pages) => {
+        if (!pages || pages.length === 0) return pages;
+
+        // 最初のページのデータと新しい投稿をマージ
+        const firstPage = pages[0];
+        const mergedData = [...newPosts, ...firstPage.data];
+
+        // 重複排除
+        const uniquePosts = mergedData.filter(
+          (post, index, self) =>
+            index === self.findIndex((p) => p.id === post.id)
+        );
+
+        // 最初のページを更新
+        const updatedFirstPage = { ...firstPage, data: uniquePosts };
+        return [updatedFirstPage, ...pages.slice(1)];
+      }, false);
 
       // 投稿が反映されたらnewPostsをクリア
       clearNewPosts();
     }
-  }, [newPosts, posts, clearNewPosts]);
+  }, [newPosts, clearNewPosts, mutate]);
 
   const loadMorePosts = () => {
-    fetchPosts(cursor);
+    setSize(size + 1);
   };
 
   if (!mounted) {
@@ -103,6 +117,14 @@ export function PostFeed() {
             <div className="h-4 bg-gray-200 rounded w-1/2"></div>
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500 my-8">
+        投稿の読み込み中にエラーが発生しました
       </div>
     );
   }
