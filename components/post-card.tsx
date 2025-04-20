@@ -41,6 +41,43 @@ export function PostCard({ post }: PostCardProps) {
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
   const { authUser, dbUser } = useSession();
 
+  // 投稿データが変更されたときにいいね状態を更新
+  useEffect(() => {
+    console.log("PostCard useEffect - post update:", {
+      postId: post?.id,
+      userLiked: post?.userLiked,
+      likeCount: post?.Like?.length,
+    });
+
+    if (post) {
+      setIsLiked(!!post.userLiked);
+      setLikeCount(post.Like?.length || 0);
+
+      // 認証ユーザーがいる場合、いいね状態を直接チェック
+      if (authUser && post.id) {
+        checkLikeStatus(post.id, authUser.id);
+      }
+    }
+  }, [post, authUser]);
+
+  // いいね状態を直接チェックする関数
+  const checkLikeStatus = async (postId: string, userId: string) => {
+    try {
+      // サーバーにいいね状態をチェックするリクエストを送信
+      const response = await fetch(
+        `/api/posts/${postId}/like/check?userId=${userId}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        console.log("いいね状態チェック結果:", data);
+        // isLikedを更新
+        setIsLiked(!!data.isLiked);
+      }
+    } catch (error) {
+      console.error("いいね状態チェックエラー:", error);
+    }
+  };
+
   // nullチェックを追加
   if (!post) {
     return null;
@@ -80,21 +117,104 @@ export function PostCard({ post }: PostCardProps) {
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // 実際にはAPIを呼び出してデータベースを更新する処理が必要
-    setIsLiked(!isLiked);
-    setLikeCount((prev) => (isLiked ? prev - 1 : prev + 1));
+    // 認証チェック - ログインしていない場合はエラーメッセージを表示
+    if (!authUser) {
+      toast.error("いいねするにはログインが必要です");
+      return;
+    }
+
+    console.log("認証情報 (クライアント):", {
+      userId: authUser.id,
+      email: authUser.email,
+      isAuthenticated: !!authUser,
+    });
+
+    // いいね操作の実行フラグ
+    let shouldContinue = true;
+    // 実際のいいね状態
+    let currentLiked = isLiked;
+
+    // いいね操作の前に最新のいいね状態をチェック
+    if (post.id) {
+      try {
+        const checkResponse = await fetch(
+          `/api/posts/${post.id}/like/check?userId=${authUser.id}`
+        );
+        if (checkResponse.ok) {
+          const checkData = await checkResponse.json();
+          console.log("操作前のいいね状態チェック:", checkData);
+
+          // 現在のいいね状態を更新
+          currentLiked = checkData.isLiked;
+
+          // UI状態と実際の状態が一致しない場合は警告
+          if (currentLiked !== isLiked) {
+            console.log("状態の不一致を検出:", {
+              uiState: isLiked,
+              actualState: currentLiked,
+            });
+            // UI状態を実際の状態に合わせる
+            setIsLiked(currentLiked);
+
+            // 処理を続行するか判断（状態が一致しなくても続行可能）
+            // shouldContinue = true; // 不一致でも操作を続行
+          }
+        }
+      } catch (checkError) {
+        console.error("いいね状態確認エラー:", checkError);
+        // エラー時も処理を続行
+      }
+    }
+
+    // 最新のいいね状態をUIに反映
+    setIsLiked(!currentLiked);
+    setLikeCount((prev) => (currentLiked ? prev - 1 : prev + 1));
 
     // いいね処理を実装するためのAPI呼び出し
-    // try {
-    //   await fetch(`/api/posts/${post.id}/like`, {
-    //     method: isLiked ? 'DELETE' : 'POST',
-    //   });
-    // } catch (error) {
-    //   console.error('Error liking post:', error);
-    //   // 失敗した場合は元に戻す
-    //   setIsLiked(!isLiked);
-    //   setLikeCount(prev => isLiked ? prev + 1 : prev - 1);
-    // }
+    try {
+      console.log("いいね操作実行:", {
+        操作: currentLiked ? "削除" : "追加",
+        method: currentLiked ? "DELETE" : "POST",
+        currentLiked,
+      });
+
+      // リクエストボディにユーザーIDを含める
+      const response = await fetch(
+        `/api/posts/${post.id}/like?userId=${authUser.id}`,
+        {
+          method: currentLiked ? "DELETE" : "POST", // 最新のいいね状態に基づいて操作を決定
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ userId: authUser.id }), // ユーザーIDをリクエストボディに含める
+          credentials: "include", // クッキーを含める
+        }
+      );
+
+      if (!response.ok) {
+        // サーバーからのエラーレスポンスを処理
+        const errorData = await response.json().catch(() => ({}));
+        console.error("サーバーエラー詳細:", errorData);
+        throw new Error(errorData.error || "いいねの処理に失敗しました");
+      }
+
+      // 操作成功後、500msの遅延を入れて再度いいね状態をチェック
+      setTimeout(async () => {
+        if (post.id && authUser) {
+          await checkLikeStatus(post.id, authUser.id);
+        }
+      }, 500);
+    } catch (error) {
+      console.error("Error liking post:", error);
+      // 失敗した場合は元に戻す
+      setIsLiked(currentLiked);
+      setLikeCount((prev) => (currentLiked ? prev + 1 : prev - 1));
+
+      // エラーメッセージを表示
+      const errorMessage =
+        error instanceof Error ? error.message : "いいねの処理に失敗しました";
+      toast.error(errorMessage);
+    }
   };
 
   // コメントボタンをクリック

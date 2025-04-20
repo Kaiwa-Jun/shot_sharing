@@ -8,15 +8,20 @@ export async function middleware(req: NextRequest) {
     const res = NextResponse.next();
     const supabase = createMiddlewareClient({ req, res });
 
-    // セッションを更新して最新の状態にする
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    try {
+      // セッションを更新して最新の状態にする
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    console.log(
-      "ミドルウェアでのセッション状態:",
-      session ? "存在します" : "存在しません"
-    );
+      console.log(
+        "ミドルウェアでのセッション状態:",
+        session ? "存在します" : "存在しません"
+      );
+    } catch (sessionError) {
+      // セッション取得エラーは警告として記録するが、リクエストは続行させる
+      console.warn("セッション取得中のエラー:", sessionError);
+    }
 
     return res;
   } catch (error) {
