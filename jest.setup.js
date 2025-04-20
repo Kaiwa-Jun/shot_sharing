@@ -12,6 +12,42 @@ global.Worker = class Worker {
   terminate() {}
 };
 
+// NextRequestとNextResponseのモック
+global.NextResponse = {
+  json: jest.fn((data, options) => ({
+    status: options?.status || 200,
+    json: async () => data,
+  })),
+};
+
+// NextRequestのモック
+jest.mock("next/server", () => {
+  return {
+    NextRequest: jest.fn().mockImplementation((url, options = {}) => ({
+      url,
+      method: options.method || "GET",
+      headers: {
+        get: jest.fn((name) => options.headers?.[name] || ""),
+        forEach: jest.fn(),
+      },
+      cookies: {
+        get: jest.fn(),
+        getAll: jest.fn(() => []),
+        set: jest.fn(),
+        delete: jest.fn(),
+      },
+      json: async () => (options.body ? JSON.parse(options.body) : {}),
+      nextUrl: new URL(url),
+    })),
+    NextResponse: {
+      json: (data, options) => ({
+        status: options?.status || 200,
+        json: async () => data,
+      }),
+    },
+  };
+});
+
 // ResizeObserverをモック
 global.ResizeObserver = class ResizeObserver {
   constructor(callback) {
@@ -38,9 +74,11 @@ jest.mock("next/navigation", () => ({
 }));
 
 // heic2anyをモック
-jest.mock("heic2any", () => ({
-  __esModule: true,
-  default: jest
-    .fn()
-    .mockResolvedValue(new Blob(["test"], { type: "image/jpeg" })),
-}));
+jest.mock("heic2any", () => {
+  return {
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => {
+      return Promise.resolve("mock-image-data");
+    }),
+  };
+});
