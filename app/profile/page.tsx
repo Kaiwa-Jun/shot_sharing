@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "@/app/auth/session-provider";
 import { useRouter } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
+import { toast } from "sonner";
 
 // 動的レンダリングを強制する
 export const dynamic = "force-dynamic";
@@ -32,29 +33,6 @@ const TABS = [
   { id: "media", label: "メディア" },
   { id: "likes", label: "いいね" },
 ];
-
-// 一時的にモック投稿を使用 - 将来的にはAPIから取得
-const LIKED_POSTS = generateMockPosts(3, 10).map((post) => {
-  return {
-    id: post.id,
-    userId: "mock-user-id",
-    imageUrl: post.imageUrl,
-    shutterSpeed: post.shutterSpeed,
-    iso: post.iso,
-    aperture: post.aperture,
-    latitude: null,
-    longitude: null,
-    createdAt: post.createdAt,
-    User: {
-      id: "mock-user-id",
-      email: `${post.user.username}@example.com`,
-      instagramUrl: null,
-      twitterUrl: null,
-    },
-    Like: [],
-    userLiked: true,
-  };
-});
 
 const container = {
   hidden: { opacity: 0 },
@@ -88,6 +66,10 @@ export default function ProfilePage() {
     open: false,
     type: null,
   });
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [likedPosts, setLikedPosts] = useState<Post[]>([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(false);
+  const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
 
   // セッションからユーザー情報を取得
   const { authUser, dbUser, isLoading, updateUserProfile } = useSession();
@@ -100,27 +82,73 @@ export default function ProfilePage() {
     }
   }, [isLoading, authUser, router]);
 
-  // 一時的にモック投稿を使用 - 将来的にはAPIから取得
-  const mockPosts = generateMockPosts(3, 0);
-  const posts = mockPosts.map((post) => ({
-    id: post.id,
-    userId: "mock-user-id",
-    imageUrl: post.imageUrl,
-    shutterSpeed: post.shutterSpeed,
-    iso: post.iso,
-    aperture: post.aperture,
-    latitude: null,
-    longitude: null,
-    createdAt: post.createdAt,
-    User: {
-      id: "mock-user-id",
-      email: `${post.user.username}@example.com`,
-      instagramUrl: null,
-      twitterUrl: null,
-    },
-    Like: [],
-    userLiked: false,
-  }));
+  // ユーザーの投稿を取得
+  useEffect(() => {
+    const fetchUserPosts = async () => {
+      if (!authUser) return;
+
+      try {
+        setIsLoadingPosts(true);
+        // ここでは一時的にモックデータを使用。後でAPIに置き換え
+        const mockPosts = generateMockPosts(3, 0).map((post) => ({
+          id: post.id,
+          userId: authUser.id,
+          imageUrl: post.imageUrl,
+          shutterSpeed: post.shutterSpeed,
+          iso: post.iso,
+          aperture: post.aperture,
+          latitude: null,
+          longitude: null,
+          createdAt: post.createdAt,
+          User: {
+            id: authUser.id,
+            email: authUser.email || "",
+            instagramUrl: null,
+            twitterUrl: null,
+          },
+          Like: [],
+          userLiked: false,
+        }));
+
+        setUserPosts(mockPosts);
+      } catch (error) {
+        console.error("ユーザー投稿取得エラー:", error);
+        toast.error("投稿の取得に失敗しました");
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    };
+
+    fetchUserPosts();
+  }, [authUser]);
+
+  // いいねした投稿を取得
+  useEffect(() => {
+    const fetchLikedPosts = async () => {
+      if (!authUser) return;
+
+      try {
+        setIsLoadingLikedPosts(true);
+        const response = await fetch(`/api/users/${authUser.id}/likes`);
+
+        if (!response.ok) {
+          throw new Error("いいねした投稿の取得に失敗しました");
+        }
+
+        const data = await response.json();
+        setLikedPosts(data.posts || []);
+      } catch (error) {
+        console.error("いいね投稿取得エラー:", error);
+        toast.error("いいねした投稿の取得に失敗しました");
+      } finally {
+        setIsLoadingLikedPosts(false);
+      }
+    };
+
+    if (activeTab === "likes") {
+      fetchLikedPosts();
+    }
+  }, [authUser, activeTab]);
 
   const handleProfileSave = async (updatedProfile: any) => {
     if (!dbUser) return;
@@ -341,16 +369,26 @@ export default function ProfilePage() {
               damping: 30,
             }}
           >
-            {activeTab === "posts" && posts.length > 0 ? (
-              posts.map((post) => <PostCard key={post.id} post={post} />)
+            {/* 投稿タブ */}
+            {activeTab === "posts" && isLoadingPosts ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : activeTab === "posts" && userPosts.length > 0 ? (
+              userPosts.map((post) => <PostCard key={post.id} post={post} />)
             ) : activeTab === "posts" ? (
               <div className="py-8 text-center text-muted-foreground">
                 まだ投稿はありません
               </div>
             ) : null}
 
-            {activeTab === "likes" && LIKED_POSTS.length > 0 ? (
-              LIKED_POSTS.map((post) => <PostCard key={post.id} post={post} />)
+            {/* いいねタブ */}
+            {activeTab === "likes" && isLoadingLikedPosts ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : activeTab === "likes" && likedPosts.length > 0 ? (
+              likedPosts.map((post) => <PostCard key={post.id} post={post} />)
             ) : activeTab === "likes" ? (
               <div className="py-8 text-center text-muted-foreground">
                 まだいいねした投稿はありません
