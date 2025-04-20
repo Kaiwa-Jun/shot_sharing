@@ -114,7 +114,7 @@ export async function POST(
 
     // ユーザーがUserテーブルに存在するか確認し、必要に応じて作成
     try {
-      await ensureUserExists(supabase, userId, userEmail);
+      await ensureUserExists(supabase, userId, userEmail || null);
     } catch (error) {
       return NextResponse.json(
         { error: "ユーザーの作成に失敗しました" },
@@ -254,7 +254,7 @@ export async function DELETE(
 
     // ユーザーがUserテーブルに存在するか確認し、必要に応じて作成
     try {
-      await ensureUserExists(supabase, userId, userEmail);
+      await ensureUserExists(supabase, userId, userEmail || null);
     } catch (error) {
       return NextResponse.json(
         { error: "ユーザーの作成に失敗しました" },
