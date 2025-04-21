@@ -14,7 +14,6 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/post-card";
-import { generateMockPosts } from "@/lib/mock-data";
 import { ProfileEditDialog } from "@/components/profile-edit-dialog";
 import { SocialLinkDialog } from "@/components/social-link-dialog";
 import Link from "next/link";
@@ -87,40 +86,65 @@ export default function ProfilePage() {
     const fetchUserPosts = async () => {
       if (!authUser) return;
 
+      // デバッグ: 認証情報の詳細をログ出力
+      console.log("[DEBUG] 認証ユーザー情報:", {
+        id: authUser.id,
+        email: authUser.email,
+        metadata: authUser.user_metadata,
+      });
+
       try {
         setIsLoadingPosts(true);
-        // ここでは一時的にモックデータを使用。後でAPIに置き換え
-        const mockPosts = generateMockPosts(3, 0).map((post) => ({
-          id: post.id,
-          userId: authUser.id,
-          imageUrl: post.imageUrl,
-          shutterSpeed: post.shutterSpeed,
-          iso: post.iso,
-          aperture: post.aperture,
-          latitude: null,
-          longitude: null,
-          createdAt: post.createdAt,
-          User: {
-            id: authUser.id,
-            email: authUser.email || "",
-            instagramUrl: null,
-            twitterUrl: null,
-          },
-          Like: [],
-          userLiked: false,
-        }));
+        console.log("[DEBUG] ユーザー投稿取得開始");
 
-        setUserPosts(mockPosts);
+        // 既存のAPIが機能していないため、直接すべての投稿を取得して
+        // ユーザーのメールアドレスでフィルタリングする
+        const response = await fetch(`/api/posts?limit=100`);
+        console.log("[DEBUG] API応答ステータス:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(
+            "[DEBUG] 投稿取得APIエラー:",
+            response.status,
+            errorData
+          );
+          throw new Error("投稿の取得に失敗しました");
+        }
+
+        const data = await response.json();
+        console.log("[DEBUG] 全投稿取得結果:", {
+          totalPosts: data.data?.length || 0,
+        });
+
+        // ユーザーのメールアドレスと一致する投稿をフィルタリング
+        const userEmail = authUser.email;
+        const filteredPosts =
+          data.data?.filter((post: any) => post.User?.email === userEmail) ||
+          [];
+
+        console.log("[DEBUG] フィルタリング後の投稿数:", filteredPosts.length);
+        if (filteredPosts.length > 0) {
+          console.log("[DEBUG] 最初の投稿のサンプル:", {
+            id: filteredPosts[0].id,
+            userId: filteredPosts[0].userId,
+            userEmail: filteredPosts[0].User?.email,
+          });
+        }
+
+        setUserPosts(filteredPosts);
       } catch (error) {
-        console.error("ユーザー投稿取得エラー:", error);
+        console.error("[DEBUG] ユーザー投稿取得エラー:", error);
         toast.error("投稿の取得に失敗しました");
       } finally {
         setIsLoadingPosts(false);
       }
     };
 
-    fetchUserPosts();
-  }, [authUser]);
+    if (activeTab === "posts") {
+      fetchUserPosts();
+    }
+  }, [authUser, activeTab]);
 
   // いいねした投稿を取得
   useEffect(() => {
@@ -129,16 +153,32 @@ export default function ProfilePage() {
 
       try {
         setIsLoadingLikedPosts(true);
-        const response = await fetch(`/api/users/${authUser.id}/likes`);
+
+        // すべての投稿を取得
+        const response = await fetch(`/api/posts?limit=100`);
 
         if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(
+            "[DEBUG] いいね投稿取得エラー:",
+            response.status,
+            errorData
+          );
           throw new Error("いいねした投稿の取得に失敗しました");
         }
 
         const data = await response.json();
-        setLikedPosts(data.posts || []);
+        console.log("[DEBUG] いいね: 全投稿取得数:", data.data?.length || 0);
+
+        // ユーザーがいいねした投稿をフィルタリング
+        const userLikedPosts =
+          data.data?.filter((post: any) => post.userLiked === true) || [];
+
+        console.log("[DEBUG] いいねした投稿数:", userLikedPosts.length);
+
+        setLikedPosts(userLikedPosts);
       } catch (error) {
-        console.error("いいね投稿取得エラー:", error);
+        console.error("[DEBUG] いいね投稿取得エラー:", error);
         toast.error("いいねした投稿の取得に失敗しました");
       } finally {
         setIsLoadingLikedPosts(false);
