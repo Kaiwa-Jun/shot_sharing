@@ -253,3 +253,109 @@ export async function POST(request: Request) {
     );
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    console.log("DELETE リクエスト受信: /api/posts");
+
+    // URLからパラメータを取得
+    const { searchParams } = new URL(request.url);
+    const postId = searchParams.get("id");
+    console.log("削除対象の投稿ID:", postId);
+
+    if (!postId) {
+      console.log("投稿IDがリクエストに含まれていません");
+      return NextResponse.json({ error: "投稿IDが必要です" }, { status: 400 });
+    }
+
+    // Supabaseクライアントを初期化
+    const supabase = createRouteHandlerClient({ cookies });
+    console.log("Supabaseクライアント初期化完了");
+
+    // ヘッダー情報をログに出力
+    const requestHeaders = Object.fromEntries(request.headers);
+    console.log("リクエストヘッダー:", JSON.stringify(requestHeaders));
+
+    // cookieのログ
+    const cookieStore = cookies();
+    const allCookies = cookieStore.getAll();
+    console.log("Cookieの数:", allCookies.length);
+
+    // 認証中のユーザーを取得
+    console.log("認証ユーザー取得中...");
+    const authResponse = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = authResponse;
+
+    console.log("認証レスポンス:", {
+      hasUser: !!user,
+      userData: user ? { id: user.id, email: user.email } : null,
+    });
+
+    if (!user) {
+      console.log("認証エラー: ユーザーが未認証");
+      return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
+    }
+
+    // 投稿を取得して所有者を確認
+    console.log(`投稿データ取得中: ${postId}`);
+    const { data: post, error: fetchError } = await supabase
+      .from("Post")
+      .select("userId")
+      .eq("id", postId)
+      .single();
+
+    if (fetchError) {
+      console.error("投稿取得エラー:", fetchError);
+      return NextResponse.json(
+        { error: "投稿取得エラー: " + fetchError.message },
+        { status: 500 }
+      );
+    }
+
+    console.log("取得した投稿データ:", post);
+
+    if (!post) {
+      console.log("投稿が見つかりません");
+      return NextResponse.json(
+        { error: "投稿が見つかりません" },
+        { status: 404 }
+      );
+    }
+
+    // 所有者チェック - ユーザーIDが一致するか確認
+    console.log("所有者チェック:", {
+      postUserId: post.userId,
+      currentUserId: user.id,
+    });
+    if (post.userId !== user.id) {
+      console.log("権限エラー: 投稿の所有者ではありません");
+      return NextResponse.json(
+        { error: "この投稿を削除する権限がありません" },
+        { status: 403 }
+      );
+    }
+
+    // 投稿を削除
+    console.log(`投稿削除実行: ${postId}`);
+    const { error: deleteError } = await supabase
+      .from("Post")
+      .delete()
+      .eq("id", postId);
+
+    if (deleteError) {
+      console.error("削除エラー:", deleteError);
+      throw deleteError;
+    }
+
+    console.log("投稿の削除に成功しました");
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error deleting post:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}

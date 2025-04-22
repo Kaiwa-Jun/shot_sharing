@@ -9,14 +9,14 @@ export const dynamic = "force-dynamic";
 // Generate static paths for all possible posts
 export async function generateStaticParams() {
   // Generate params for all possible post IDs
-  const params: Array<{ id: string }> = [];
+  const params: Array<{ postId: string }> = [];
 
   // Each user can have multiple posts
   MOCK_USERS.forEach((_, userIndex) => {
     // For each user, generate 5 post IDs (matching POSTS_PER_PAGE in PostFeed)
     Array.from({ length: 5 }).forEach((_, postIndex) => {
       params.push({
-        id: `${userIndex}-${postIndex + 1}`,
+        postId: `${userIndex}-${postIndex + 1}`,
       });
     });
   });
@@ -24,9 +24,13 @@ export async function generateStaticParams() {
   return params;
 }
 
-export default function PostDetailPage({ params }: { params: { id: string } }) {
+export default function PostDetailPage({
+  params,
+}: {
+  params: { postId: string };
+}) {
   // Parse the user index and post index from the ID
-  const [userIndex, postIndex] = params.id.split("-").map(Number);
+  const [userIndex, postIndex] = params.postId.split("-").map(Number);
 
   // Validate indices
   if (
