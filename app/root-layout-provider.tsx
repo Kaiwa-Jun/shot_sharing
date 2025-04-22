@@ -2,7 +2,7 @@
 
 import React from "react";
 import { AlertProvider } from "@/components/alert-dialog";
-import { SessionProvider } from "@/app/auth/session-provider";
+import SessionProvider from "@/app/auth/session-provider";
 import { PostsProvider } from "@/lib/contexts/posts-context";
 
 export function RootLayoutProvider({
