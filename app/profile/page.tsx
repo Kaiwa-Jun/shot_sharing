@@ -153,9 +153,12 @@ export default function ProfilePage() {
 
       try {
         setIsLoadingLikedPosts(true);
+        console.log("[DEBUG] いいね投稿取得開始: ユーザーID", authUser.id);
 
-        // すべての投稿を取得
-        const response = await fetch(`/api/posts?limit=100`);
+        // 専用のいいね投稿取得APIを使用
+        const response = await fetch(`/api/posts/liked?userId=${authUser.id}`);
+
+        console.log("[DEBUG] API応答ステータス:", response.status);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -168,15 +171,10 @@ export default function ProfilePage() {
         }
 
         const data = await response.json();
-        console.log("[DEBUG] いいね: 全投稿取得数:", data.data?.length || 0);
+        console.log("[DEBUG] いいね投稿取得数:", data.data?.length || 0);
 
-        // ユーザーがいいねした投稿をフィルタリング
-        const userLikedPosts =
-          data.data?.filter((post: any) => post.userLiked === true) || [];
-
-        console.log("[DEBUG] いいねした投稿数:", userLikedPosts.length);
-
-        setLikedPosts(userLikedPosts);
+        // APIからの応答を直接使用
+        setLikedPosts(data.data || []);
       } catch (error) {
         console.error("[DEBUG] いいね投稿取得エラー:", error);
         toast.error("いいねした投稿の取得に失敗しました");
