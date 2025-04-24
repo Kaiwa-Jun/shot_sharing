@@ -222,7 +222,7 @@ export const LikeButton = memo(
 // 表示名を設定（デバッグのため）
 LikeButton.displayName = "LikeButton";
 
-export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
+export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
@@ -521,16 +521,13 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                     initialIsLiked={!!post.userLiked}
                     initialLikeCount={post.Like?.length || 0}
                     onStateChange={(isLiked, count) => {
-                      // いいね状態が変更されたときの処理
+                      // いいね状態が変更されたときの処理（オプション）
                       console.log("いいね状態が変更されました:", {
                         isLiked,
                         count,
                         postId: post.id,
                       });
-                      // 親コンポーネントに通知（存在する場合）
-                      if (onLikeStateChange) {
-                        onLikeStateChange(isLiked, count);
-                      }
+                      // 必要に応じて、投稿の状態を更新するロジックをここに追加できます
                     }}
                   />
 
