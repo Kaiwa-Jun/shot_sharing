@@ -22,6 +22,8 @@ export const LikeButton = memo(
     const { authUser } = useSession();
     const [isLiked, setIsLiked] = useState(initialIsLiked);
     const [likeCount, setLikeCount] = useState(initialLikeCount);
+    // いいね処理中かどうかの状態を追加
+    const [isUpdating, setIsUpdating] = useState(false);
 
     // いいね状態を直接チェックする関数
     const checkLikeStatus = useCallback(
@@ -62,42 +64,24 @@ export const LikeButton = memo(
       async (e: React.MouseEvent) => {
         e.stopPropagation();
 
+        // 処理中なら操作を受け付けない
+        if (isUpdating) return;
+
         // 認証チェック - ログインしていない場合はエラーメッセージを表示
         if (!authUser) {
           toast.error("いいねするにはログインが必要です");
           return;
         }
 
-        // いいね操作の実行フラグ
-        let currentLiked = isLiked;
+        // 処理中フラグをセット
+        setIsUpdating(true);
 
-        // いいね操作の前に最新のいいね状態をチェック
-        if (postId) {
-          try {
-            const checkResponse = await fetch(
-              `/api/posts/${postId}/like/check?userId=${authUser.id}`
-            );
-            if (checkResponse.ok) {
-              const checkData = await checkResponse.json();
+        // 現在のいいね状態を保存（元に戻すために使用）
+        const currentLiked = isLiked;
+        const currentCount = likeCount;
 
-              // 現在のいいね状態を更新
-              currentLiked = checkData.isLiked;
-
-              // UI状態と実際の状態が一致しない場合は警告
-              if (currentLiked !== isLiked) {
-                // UI状態を実際の状態に合わせる
-                setIsLiked(currentLiked);
-              }
-            }
-          } catch (checkError) {
-            console.error("いいね状態確認エラー:", checkError);
-            // エラー時も処理を続行
-          }
-        }
-
-        // 新しいいいね状態
+        // 楽観的UI更新（すぐに表示を更新）
         const newIsLiked = !currentLiked;
-        // 最新のいいね状態をUIに反映
         setIsLiked(newIsLiked);
         const newLikeCount = currentLiked ? likeCount - 1 : likeCount + 1;
         setLikeCount(newLikeCount);
@@ -128,21 +112,17 @@ export const LikeButton = memo(
             throw new Error(errorData.error || "いいねの処理に失敗しました");
           }
 
-          // 操作成功後、500msの遅延を入れて再度いいね状態をチェック
-          setTimeout(async () => {
-            if (postId && authUser) {
-              await checkLikeStatus(postId, authUser.id);
-            }
-          }, 500);
+          // 成功時の処理
+          // 状態確認のための追加リクエストは削除（チラつきの原因になる可能性があるため）
         } catch (error) {
           console.error("Error liking post:", error);
           // 失敗した場合は元に戻す
           setIsLiked(currentLiked);
-          setLikeCount((prev) => (currentLiked ? prev + 1 : prev - 1));
+          setLikeCount(currentCount);
 
           // 親コンポーネントにも状態を元に戻すことを通知
           if (onStateChange) {
-            onStateChange(currentLiked, currentLiked ? likeCount : likeCount);
+            onStateChange(currentLiked, currentCount);
           }
 
           // エラーメッセージを表示
@@ -151,23 +131,27 @@ export const LikeButton = memo(
               ? error.message
               : "いいねの処理に失敗しました";
           toast.error(errorMessage);
+        } finally {
+          // 処理完了後、フラグをリセット
+          setIsUpdating(false);
         }
       },
-      [authUser, isLiked, likeCount, postId, onStateChange, checkLikeStatus]
+      [authUser, isLiked, likeCount, postId, onStateChange, isUpdating]
     );
 
     return (
       <button
         className="flex items-center gap-1 text-muted-foreground hover:text-primary transition-colors"
         onClick={handleLikeClick}
+        disabled={isUpdating}
       >
         <Heart
           className={cn(
-            "h-5 w-5",
-            isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+            "h-5 w-5 transform transition-all duration-300 ease-in-out",
+            isLiked ? "fill-red-500 text-red-500 scale-110" : "text-gray-600"
           )}
         />
-        <span>{likeCount}</span>
+        <span className="transition-all duration-200">{likeCount}</span>
       </button>
     );
   }
