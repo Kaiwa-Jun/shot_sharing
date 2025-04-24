@@ -1,51 +1,67 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { PostCard } from "@/components/post-card";
-import { generateMockPosts, MOCK_USERS } from "@/lib/mock-data";
 import { notFound } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
+import { Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
 
 // 動的レンダリングを強制する
 export const dynamic = "force-dynamic";
 
-// Generate static paths for all possible posts
-export async function generateStaticParams() {
-  // Generate params for all possible post IDs
-  const params: Array<{ postId: string }> = [];
+export default function PostDetailPage() {
+  const params = useParams();
+  const postId = params.postId as string;
+  const [post, setPost] = useState<Post | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Each user can have multiple posts
-  MOCK_USERS.forEach((_, userIndex) => {
-    // For each user, generate 5 post IDs (matching POSTS_PER_PAGE in PostFeed)
-    Array.from({ length: 5 }).forEach((_, postIndex) => {
-      params.push({
-        postId: `${userIndex}-${postIndex + 1}`,
-      });
-    });
-  });
+  useEffect(() => {
+    const fetchPost = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/posts/${postId}`);
 
-  return params;
-}
+        if (!response.ok) {
+          if (response.status === 404) {
+            notFound();
+          }
+          throw new Error("投稿の取得に失敗しました");
+        }
 
-export default function PostDetailPage({
-  params,
-}: {
-  params: { postId: string };
-}) {
-  // Parse the user index and post index from the ID
-  const [userIndex, postIndex] = params.postId.split("-").map(Number);
+        const data = await response.json();
+        setPost(data.data);
+      } catch (err) {
+        console.error("投稿取得エラー:", err);
+        setError("投稿の取得中にエラーが発生しました");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Validate indices
-  if (
-    isNaN(userIndex) ||
-    isNaN(postIndex) ||
-    userIndex < 0 ||
-    userIndex >= MOCK_USERS.length ||
-    postIndex < 1
-  ) {
-    notFound();
+    if (postId) {
+      fetchPost();
+    }
+  }, [postId]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-2xl mx-auto py-20 flex justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
-  const mockPost = generateMockPosts(1, userIndex)[0];
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto py-8">
+        <div className="text-center text-muted-foreground">{error}</div>
+      </div>
+    );
+  }
 
-  if (!mockPost) {
+  if (!post) {
     return (
       <div className="max-w-2xl mx-auto py-8">
         <div className="text-center text-muted-foreground">
@@ -54,27 +70,6 @@ export default function PostDetailPage({
       </div>
     );
   }
-
-  // モックデータをPostの型に変換
-  const post: Post = {
-    id: mockPost.id,
-    userId: `user-${userIndex}`,
-    imageUrl: mockPost.imageUrl,
-    shutterSpeed: mockPost.shutterSpeed,
-    iso: mockPost.iso,
-    aperture: mockPost.aperture,
-    latitude: null,
-    longitude: null,
-    createdAt: mockPost.createdAt,
-    User: {
-      id: `user-${userIndex}`,
-      email: `${mockPost.user.username}@example.com`,
-      instagramUrl: null,
-      twitterUrl: null,
-    },
-    Like: [],
-    userLiked: false,
-  };
 
   return (
     <div className="max-w-2xl mx-auto pb-32 lg:pb-8">
