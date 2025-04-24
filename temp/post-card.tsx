@@ -8,9 +8,6 @@ import {
   MoreHorizontal,
   Edit,
   Trash2,
-  MessageSquare,
-  Repeat2,
-  Share,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -24,7 +21,7 @@ import {
 import { formatDistanceToNow } from "date-fns";
 import { cn, isBrowser } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, memo, useCallback } from "react";
+import { useState, useEffect, memo } from "react";
 import { ReplySection } from "@/components/reply-section";
 import { ReplyDialog } from "@/components/reply-dialog";
 import { Post } from "@/lib/supabase/types";
@@ -34,7 +31,6 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { useAlert } from "@/components/alert-dialog";
 import { CustomAlert } from "@/components/custom-alert";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { LikeButton } from "./like-button";
 
 interface PostCardProps {
   post: Post;
@@ -42,7 +38,191 @@ interface PostCardProps {
   onLikeStateChange?: (isLiked: boolean, likeCount: number) => void;
 }
 
-export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
+// いいねボタンコンポーネント - メモ化してパフォーマンス向上
+export const LikeButton = memo(
+  ({
+    postId,
+    initialIsLiked,
+    initialLikeCount,
+    onStateChange,
+  }: {
+    postId: string;
+    initialIsLiked: boolean;
+    initialLikeCount: number;
+    onStateChange?: (isLiked: boolean, likeCount: number) => void;
+  }) => {
+    const { authUser } = useSession();
+    const [isLiked, setIsLiked] = useState(initialIsLiked);
+    const [likeCount, setLikeCount] = useState(initialLikeCount);
+
+    // いいね状態を直接チェックする関数
+    const checkLikeStatus = async (postId: string, userId: string) => {
+      try {
+        const response = await fetch(
+          `/api/posts/${postId}/like/check?userId=${userId}`
+        );
+        if (response.ok) {
+          const data = await response.json();
+          console.log("いいね状態チェック結果:", data);
+          const newIsLiked = !!data.isLiked;
+          setIsLiked(newIsLiked);
+
+          // 親コンポーネントに状態変更を通知（任意）
+          if (onStateChange && newIsLiked !== isLiked) {
+            onStateChange(
+              newIsLiked,
+              newIsLiked ? likeCount + 1 : likeCount - 1
+            );
+          }
+        }
+      } catch (error) {
+        console.error("いいね状態チェックエラー:", error);
+      }
+    };
+
+    // コンポーネントマウント時と認証ユーザー変更時にいいね状態チェック
+    useEffect(() => {
+      if (authUser && postId) {
+        checkLikeStatus(postId, authUser.id);
+      }
+    }, [postId, authUser]);
+
+    // いいねボタンをクリック
+    const handleLikeClick = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+
+      // 認証チェック - ログインしていない場合はエラーメッセージを表示
+      if (!authUser) {
+        toast.error("いいねするにはログインが必要です");
+        return;
+      }
+
+      console.log("認証情報 (クライアント):", {
+        userId: authUser.id,
+        email: authUser.email,
+        isAuthenticated: !!authUser,
+      });
+
+      // いいね操作の実行フラグ
+      let shouldContinue = true;
+      // 実際のいいね状態
+      let currentLiked = isLiked;
+
+      // いいね操作の前に最新のいいね状態をチェック
+      if (postId) {
+        try {
+          const checkResponse = await fetch(
+            `/api/posts/${postId}/like/check?userId=${authUser.id}`
+          );
+          if (checkResponse.ok) {
+            const checkData = await checkResponse.json();
+            console.log("操作前のいいね状態チェック:", checkData);
+
+            // 現在のいいね状態を更新
+            currentLiked = checkData.isLiked;
+
+            // UI状態と実際の状態が一致しない場合は警告
+            if (currentLiked !== isLiked) {
+              console.log("状態の不一致を検出:", {
+                uiState: isLiked,
+                actualState: currentLiked,
+              });
+              // UI状態を実際の状態に合わせる
+              setIsLiked(currentLiked);
+            }
+          }
+        } catch (checkError) {
+          console.error("いいね状態確認エラー:", checkError);
+          // エラー時も処理を続行
+        }
+      }
+
+      // 新しいいいね状態
+      const newIsLiked = !currentLiked;
+      // 最新のいいね状態をUIに反映
+      setIsLiked(newIsLiked);
+      const newLikeCount = currentLiked ? likeCount - 1 : likeCount + 1;
+      setLikeCount(newLikeCount);
+
+      // 親コンポーネントに状態変更を通知（任意）
+      if (onStateChange) {
+        onStateChange(newIsLiked, newLikeCount);
+      }
+
+      // いいね処理を実装するためのAPI呼び出し
+      try {
+        console.log("いいね操作実行:", {
+          操作: currentLiked ? "削除" : "追加",
+          method: currentLiked ? "DELETE" : "POST",
+          currentLiked,
+        });
+
+        // リクエストボディにユーザーIDを含める
+        const response = await fetch(
+          `/api/posts/${postId}/like?userId=${authUser.id}`,
+          {
+            method: currentLiked ? "DELETE" : "POST", // 最新のいいね状態に基づいて操作を決定
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ userId: authUser.id }), // ユーザーIDをリクエストボディに含める
+            credentials: "include", // クッキーを含める
+          }
+        );
+
+        if (!response.ok) {
+          // サーバーからのエラーレスポンスを処理
+          const errorData = await response.json().catch(() => ({}));
+          console.error("サーバーエラー詳細:", errorData);
+          throw new Error(errorData.error || "いいねの処理に失敗しました");
+        }
+
+        // 操作成功後、500msの遅延を入れて再度いいね状態をチェック
+        setTimeout(async () => {
+          if (postId && authUser) {
+            await checkLikeStatus(postId, authUser.id);
+          }
+        }, 500);
+      } catch (error) {
+        console.error("Error liking post:", error);
+        // 失敗した場合は元に戻す
+        setIsLiked(currentLiked);
+        setLikeCount((prev) => (currentLiked ? prev + 1 : prev - 1));
+
+        // 親コンポーネントにも状態を元に戻すことを通知
+        if (onStateChange) {
+          onStateChange(currentLiked, currentLiked ? likeCount : likeCount);
+        }
+
+        // エラーメッセージを表示
+        const errorMessage =
+          error instanceof Error ? error.message : "いいねの処理に失敗しました";
+        toast.error(errorMessage);
+      }
+    };
+
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="flex items-center gap-1 px-2"
+        onClick={handleLikeClick}
+      >
+        <Heart
+          className={cn(
+            "h-5 w-5",
+            isLiked ? "fill-red-500 text-red-500" : "text-gray-600"
+          )}
+        />
+        <span>{likeCount}</span>
+      </Button>
+    );
+  }
+);
+// 表示名を設定（デバッグのため）
+LikeButton.displayName = "LikeButton";
+
+export function PostCard({ post }: PostCardProps) {
   const router = useRouter();
   const [showReplies, setShowReplies] = useState(false);
   const [isReplyDialogOpen, setIsReplyDialogOpen] = useState(false);
@@ -335,12 +515,20 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
               <div className="p-4">
                 <div className="flex gap-4 mb-4">
-                  {/* いいねコンポーネントを分離したものを使用 */}
+                  {/* いいねコンポーネントを分離 */}
                   <LikeButton
                     postId={post.id}
                     initialIsLiked={!!post.userLiked}
                     initialLikeCount={post.Like?.length || 0}
-                    onStateChange={onLikeStateChange}
+                    onStateChange={(isLiked, count) => {
+                      // いいね状態が変更されたときの処理（オプション）
+                      console.log("いいね状態が変更されました:", {
+                        isLiked,
+                        count,
+                        postId: post.id,
+                      });
+                      // 必要に応じて、投稿の状態を更新するロジックをここに追加できます
+                    }}
                   />
 
                   <Button
@@ -410,5 +598,3 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     </>
   );
 }
-
-PostCard.displayName = "PostCard";
