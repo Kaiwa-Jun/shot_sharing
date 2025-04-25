@@ -45,7 +45,6 @@ const getUserDisplayName = (user: any) => {
   return (
     user?.user_metadata?.full_name ||
     user?.user_metadata?.name ||
-    user?.fullName ||
     user?.name ||
     user?.email ||
     "ゲスト"
@@ -222,8 +221,24 @@ export function ReplySection({
       console.log("取得したコメントデータ:", data);
 
       if (data.data) {
-        setComments(data.data);
-        onReplyCountChange?.(data.data.length);
+        // コメントデータを正規化して、user情報を確実に取得
+        const normalizedComments = data.data.map((comment: any) => {
+          // userオブジェクトを正規化するための情報をAPIから取得
+          const userData = comment.user || {};
+
+          return {
+            ...comment,
+            // ユーザー情報を適切に設定
+            user: {
+              ...userData,
+              // ユーザーメタデータを確保
+              user_metadata: userData.user_metadata || {},
+            },
+          };
+        });
+
+        setComments(normalizedComments);
+        onReplyCountChange?.(normalizedComments.length);
       }
     } catch (error) {
       console.error("コメント取得エラー:", error);
@@ -303,8 +318,19 @@ export function ReplySection({
       console.log("投稿したコメント:", data);
 
       if (data.data) {
+        // 新しいコメントも正規化してからコメントリストに追加
+        const newComment = {
+          ...data.data,
+          user: {
+            id: userId,
+            name: getUserDisplayName(authUser),
+            avatarUrl: getUserAvatarUrl(authUser) || getUserAvatarUrl(dbUser),
+            user_metadata: authUser.user_metadata || {},
+          },
+        };
+
         // 既存のコメントに新しいコメントを追加
-        const newComments = [...comments, data.data];
+        const newComments = [...comments, newComment];
         setComments(newComments);
         onReplyCountChange?.(newComments.length);
         toast.success("コメントを投稿しました");
@@ -360,11 +386,17 @@ export function ReplySection({
                 {comments.map((comment, index) => {
                   // User型からユーザー情報を取得
                   const user = comment.user || {};
-                  const avatarUrl =
-                    getUserAvatarUrl(user) ||
-                    user?.avatarUrl ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`;
+
+                  // ユーザー情報を取得
                   const displayName = getUserDisplayName(user);
+
+                  console.log("コメント表示データ:", {
+                    commentId: comment.id,
+                    userId: user.id,
+                    userName: displayName,
+                    avatarUrl: getUserAvatarUrl(user),
+                    rawUser: user,
+                  });
 
                   return (
                     <motion.div
@@ -381,9 +413,12 @@ export function ReplySection({
                       <div className="relative">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-6 -translate-y-6 bg-border" />
                         <Avatar className="h-8 w-8">
-                          <AvatarImage src={avatarUrl} alt="User Avatar" />
+                          <AvatarImage
+                            src={getUserAvatarUrl(user)}
+                            alt={`${displayName}のアバター`}
+                          />
                           <AvatarFallback>
-                            {user.email?.substring(0, 2).toUpperCase() || "UN"}
+                            {displayName.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         {index < comments.length - 1 && (
@@ -426,11 +461,17 @@ export function ReplySection({
                 {comments.map((comment, index) => {
                   // User型からユーザー情報を取得
                   const user = comment.user || {};
-                  const avatarUrl =
-                    getUserAvatarUrl(user) ||
-                    user?.avatarUrl ||
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`;
+
+                  // ユーザー情報を取得
                   const displayName = getUserDisplayName(user);
+
+                  console.log("コメント表示データ:", {
+                    commentId: comment.id,
+                    userId: user.id,
+                    userName: displayName,
+                    avatarUrl: getUserAvatarUrl(user),
+                    rawUser: user,
+                  });
 
                   return (
                     <motion.div
@@ -447,9 +488,12 @@ export function ReplySection({
                       <div className="relative">
                         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-6 -translate-y-6 bg-border" />
                         <Avatar className="h-10 w-10">
-                          <AvatarImage src={avatarUrl} alt="User Avatar" />
+                          <AvatarImage
+                            src={getUserAvatarUrl(user)}
+                            alt={`${displayName}のアバター`}
+                          />
                           <AvatarFallback>
-                            {user.email?.substring(0, 2).toUpperCase() || "UN"}
+                            {displayName.substring(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         {index < comments.length - 1 && (
