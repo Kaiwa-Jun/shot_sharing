@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import { Post } from "@/lib/supabase/types";
 import { Loader2 } from "lucide-react";
 import { useParams } from "next/navigation";
+import { ReplySection } from "@/components/reply-section";
 
 // 動的レンダリングを強制する
 export const dynamic = "force-dynamic";
@@ -169,12 +170,15 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto pb-32 lg:pb-8">
-      <PostCard
-        post={post}
-        isDetail
-        onLikeStateChange={handleLikeStateChange}
-      />
+    <div className="max-w-2xl mx-auto pb-32 lg:pb-8 space-y-4">
+      {/* 投稿カード - isDetail属性を削除してReplySectionが内部で表示されないようにする */}
+      <PostCard post={post} onLikeStateChange={handleLikeStateChange} />
+
+      {/* 返信セクションを投稿カード外部に配置 */}
+      <div className="mt-4">
+        <h3 className="text-lg font-bold mb-2">コメント</h3>
+        <ReplySection postId={post.id} />
+      </div>
     </div>
   );
 }
