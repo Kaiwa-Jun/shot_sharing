@@ -25,7 +25,11 @@ export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { authUser } = useSession();
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e: React.MouseEvent) => {
+    // クリックイベントの伝播を停止
+    e.preventDefault();
+    e.stopPropagation();
+
     if (!comment.trim()) return;
 
     // 認証チェック
@@ -101,12 +105,24 @@ export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
     }
   };
 
+  const handleCancel = (e: React.MouseEvent) => {
+    // クリックイベントの伝播を停止
+    e.preventDefault();
+    e.stopPropagation();
+    onOpenChange(false);
+  };
+
+  const handleDialogClick = (e: React.MouseEvent) => {
+    // ダイアログ内部のクリックイベント伝播を停止
+    e.stopPropagation();
+  };
+
   return (
     <Dialog
       open={open}
       onOpenChange={(newOpen) => onOpenChange(newOpen, false)}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onClick={handleDialogClick}>
         <DialogHeader>
           <DialogTitle>コメントを追加</DialogTitle>
           <DialogDescription>投稿にコメントを追加します。</DialogDescription>
@@ -124,7 +140,7 @@ export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
         <div className="flex justify-end gap-2">
           <Button
             variant="outline"
-            onClick={() => onOpenChange(false)}
+            onClick={handleCancel}
             disabled={isSubmitting}
           >
             キャンセル
