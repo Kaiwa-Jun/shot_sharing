@@ -187,7 +187,13 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
   // コメントボタンをクリック
   const handleCommentClick = (e: React.MouseEvent) => {
+    // イベントの伝播を止める
     e.stopPropagation();
+
+    // 詳細画面の場合はダイアログを表示しない
+    if (isDetail) return;
+
+    // 一覧画面の場合はダイアログを表示
     setIsReplyDialogOpen(true);
   };
 
@@ -505,8 +511,13 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="flex items-center gap-1 px-2"
+                    className={cn(
+                      "flex items-center gap-1 px-2",
+                      isDetail &&
+                        "cursor-default opacity-80 hover:bg-transparent"
+                    )}
                     onClick={handleCommentClick}
+                    disabled={isDetail}
                   >
                     <MessageCircle className="h-5 w-5" />
                     <span>{commentCount}</span>
