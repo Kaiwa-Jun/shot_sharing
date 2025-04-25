@@ -56,6 +56,60 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     useState("投稿が正常に削除されました");
   // 削除確認ダイアログの表示状態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // コメント数を管理するstate
+  const [commentCount, setCommentCount] = useState(0);
+
+  // マウント時にデバッグログを出力
+  useEffect(() => {
+    console.log("[PostCard] マウント時の状態:", {
+      postId: post?.id,
+      isDetail,
+      showReplies,
+      pathname: window.location.pathname,
+    });
+  }, []);
+
+  // 詳細画面の場合は、マウント時に返信を表示
+  useEffect(() => {
+    if (isDetail) {
+      console.log("[PostCard] 詳細画面のため返信を表示します");
+      setShowReplies(true);
+    }
+  }, [isDetail]);
+
+  // マウント時にコメント数を取得
+  useEffect(() => {
+    const fetchCommentCount = async () => {
+      try {
+        if (!post?.id) return;
+
+        console.log("[PostCard] コメント数取得開始:", post.id);
+        const response = await fetch(`/api/posts/${post.id}/replies/count`);
+
+        if (!response.ok) {
+          console.error("コメント数取得エラー:", response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+        console.log("[PostCard] コメント数取得成功:", data);
+        setCommentCount(data.count || 0);
+      } catch (error) {
+        console.error("コメント数取得エラー:", error);
+      }
+    };
+
+    fetchCommentCount();
+  }, [post?.id]);
+
+  // showRepliesの変更を監視
+  useEffect(() => {
+    console.log("[PostCard] 返信表示状態が変更されました:", {
+      showReplies,
+      isDetail,
+      shouldShowReplySection: showReplies || isDetail,
+    });
+  }, [showReplies, isDetail]);
 
   // アラートが表示されたら、一定時間後に非表示にする
   useEffect(() => {
@@ -100,7 +154,9 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
   // 投稿の詳細ページに移動
   const handleCardClick = () => {
-    router.push(`/posts/${post.id}`);
+    if (!isDetail) {
+      router.push(`/posts/${post.id}`);
+    }
   };
 
   // コメントボタンをクリック
@@ -218,6 +274,47 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     }
   };
 
+  // デバッグ出力 - 返信セクション表示条件
+  const shouldShowReplySection = showReplies || isDetail;
+  console.log("[PostCard] レンダリング時の状態:", {
+    postId: post.id,
+    isDetail,
+    showReplies,
+    shouldShowReplySection,
+    pathname: window.location.pathname,
+  });
+
+  // コメント数を再取得する関数
+  const refreshCommentCount = async () => {
+    try {
+      if (!post?.id) return;
+
+      console.log("[PostCard] コメント数再取得:", post.id);
+      const response = await fetch(`/api/posts/${post.id}/replies/count`);
+
+      if (!response.ok) {
+        console.error("コメント数再取得エラー:", response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("[PostCard] コメント数取得成功:", data);
+      setCommentCount(data.count || 0);
+    } catch (error) {
+      console.error("コメント数再取得エラー:", error);
+    }
+  };
+
+  // 返信ダイアログが閉じられたときのハンドラー
+  const handleReplyDialogClose = (open: boolean) => {
+    setIsReplyDialogOpen(open);
+
+    // ダイアログが閉じられたときにコメント数を更新
+    if (!open) {
+      refreshCommentCount();
+    }
+  };
+
   // AnimatePresenceを使って投稿カードにアニメーション効果を追加
   return (
     <>
@@ -254,7 +351,10 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
             transition={{ duration: 0.3 }}
           >
             <Card
-              className="overflow-hidden transition-all duration-300 hover:shadow-md cursor-pointer"
+              className={cn(
+                "overflow-hidden transition-all duration-300 hover:shadow-md",
+                !isDetail && "cursor-pointer"
+              )}
               onClick={handleCardClick}
             >
               <div className="p-4">
@@ -350,7 +450,7 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                     onClick={handleCommentClick}
                   >
                     <MessageCircle className="h-5 w-5" />
-                    <span>0</span>
+                    <span>{commentCount}</span>
                   </Button>
                 </div>
 
@@ -386,21 +486,33 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                   )}
                 </div>
 
-                {showReplies && (
+                {/* 詳細ページでは常に返信セクションを表示する */}
+                {showReplies || isDetail ? (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
+                    <div className="mb-2 text-sm text-muted-foreground">
+                      {isDetail
+                        ? "詳細ページモード: 返信セクションを表示中"
+                        : "通常モード: ユーザーの操作で返信表示"}
+                    </div>
                     <ReplySection postId={post.id} />
                   </motion.div>
+                ) : (
+                  <div className="text-sm text-muted-foreground py-2">
+                    デバッグ情報: 返信セクション非表示 (isDetail:{" "}
+                    {isDetail ? "true" : "false"}, showReplies:{" "}
+                    {showReplies ? "true" : "false"})
+                  </div>
                 )}
               </div>
 
               <ReplyDialog
                 open={isReplyDialogOpen}
-                onOpenChange={setIsReplyDialogOpen}
+                onOpenChange={handleReplyDialogClose}
                 postId={post.id}
               />
             </Card>
