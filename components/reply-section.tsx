@@ -11,6 +11,7 @@ import { ja } from "date-fns/locale";
 import { Comment } from "@/lib/supabase/types";
 import { useSession } from "@/app/auth/session-provider";
 import { toast } from "sonner";
+import eventEmitter, { EVENTS } from "@/lib/utils/event-emitter";
 
 interface Reply {
   id: string;
@@ -334,6 +335,10 @@ export function ReplySection({
         setComments(newComments);
         onReplyCountChange?.(newComments.length);
         toast.success("コメントを投稿しました");
+
+        // グローバルイベントを発行
+        console.log("[ReplySection] コメント追加イベント発行:", { postId });
+        eventEmitter.emit(EVENTS.COMMENT_ADDED, postId);
       }
     } catch (error) {
       console.error("コメント投稿エラー:", error);

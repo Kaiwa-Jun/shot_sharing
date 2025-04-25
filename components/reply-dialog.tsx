@@ -10,49 +10,102 @@ import {
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
+import { toast } from "sonner";
+import { useSession } from "@/app/auth/session-provider";
+import eventEmitter, { EVENTS } from "@/lib/utils/event-emitter";
 
 interface ReplyDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (open: boolean, commentAdded?: boolean) => void;
   postId: string;
 }
 
 export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
   const [comment, setComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { authUser } = useSession();
 
   const handleSubmit = async () => {
     if (!comment.trim()) return;
 
+    // 認証チェック
+    if (!authUser) {
+      toast.error("コメントを投稿するにはログインが必要です");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // ここにコメント送信のAPIリクエストを実装
-      // const response = await fetch(`/api/posts/${postId}/comments`, {
-      //   method: "POST",
-      //   headers: {
-      //     "Content-Type": "application/json",
-      //   },
-      //   body: JSON.stringify({ content: comment }),
-      // });
+      // ユーザーIDを取得
+      const userId = authUser.id;
+      if (!userId) {
+        toast.error("ユーザー情報の取得に失敗しました");
+        return;
+      }
 
-      // if (!response.ok) {
-      //   throw new Error("Failed to post comment");
-      // }
+      console.log("コメント投稿開始 (ReplyDialog):", {
+        認証済み: !!authUser,
+        ユーザーID: userId,
+        メール: authUser.email,
+      });
+
+      // URLにユーザーIDをクエリパラメータとして追加
+      const url = `/api/comments?userId=${encodeURIComponent(userId)}`;
+
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          postId,
+          content: comment,
+          userId: userId, // ボディにもユーザーIDを含める
+        }),
+        credentials: "include", // 重要: 認証クッキーを含める
+      });
+
+      if (!response.ok) {
+        let errorData;
+        try {
+          errorData = await response.json();
+          console.error("エラーレスポンス:", errorData);
+        } catch (e) {
+          console.error("エラーレスポンスのパースに失敗:", e);
+          errorData = { error: "不明なエラー" };
+        }
+        throw new Error(errorData.error || "コメントの投稿に失敗しました");
+      }
 
       // 送信成功時の処理
+      const data = await response.json();
+      console.log("投稿したコメントデータ:", data);
+
       setComment("");
-      onOpenChange(false);
+      toast.success("コメントを投稿しました");
+
+      // グローバルイベントを発行
+      console.log("[ReplyDialog] コメント追加イベント発行:", { postId });
+      eventEmitter.emit(EVENTS.COMMENT_ADDED, postId);
+
+      // コメント追加成功フラグをtrueにしてダイアログを閉じる
+      onOpenChange(false, true);
     } catch (error) {
       console.error("Error posting comment:", error);
-      // エラー処理
+      toast.error(
+        error instanceof Error ? error.message : "コメントの投稿に失敗しました"
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(newOpen) => onOpenChange(newOpen, false)}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>コメントを追加</DialogTitle>
@@ -80,7 +133,14 @@ export function ReplyDialog({ open, onOpenChange, postId }: ReplyDialogProps) {
             onClick={handleSubmit}
             disabled={!comment.trim() || isSubmitting}
           >
-            {isSubmitting ? "送信中..." : "コメントを投稿"}
+            {isSubmitting ? (
+              <>
+                <div className="animate-spin mr-2 h-4 w-4 border-2 border-current border-t-transparent rounded-full"></div>
+                送信中...
+              </>
+            ) : (
+              "コメントを投稿"
+            )}
           </Button>
         </div>
       </DialogContent>
