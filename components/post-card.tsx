@@ -35,6 +35,7 @@ import { useAlert } from "@/components/alert-dialog";
 import { CustomAlert } from "@/components/custom-alert";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LikeButton } from "./like-button";
+import eventEmitter, { EVENTS } from "@/lib/utils/event-emitter";
 
 interface PostCardProps {
   post: Post;
@@ -100,6 +101,31 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     };
 
     fetchCommentCount();
+
+    // コメント追加イベントリスナーを設定
+    const handleCommentAdded = (commentPostId: string) => {
+      if (commentPostId === post.id) {
+        console.log("[PostCard] コメント追加イベントを受信:", {
+          postId: post.id,
+        });
+
+        // 楽観的UI更新: コメント数をすぐに増やす
+        setCommentCount((prev) => prev + 1);
+
+        // 実際のデータを取得（遅延付き）
+        setTimeout(() => {
+          fetchCommentCount();
+        }, 500);
+      }
+    };
+
+    // イベントリスナーを登録
+    eventEmitter.on(EVENTS.COMMENT_ADDED, handleCommentAdded);
+
+    // クリーンアップ関数: コンポーネントのアンマウント時にリスナーを削除
+    return () => {
+      eventEmitter.off(EVENTS.COMMENT_ADDED, handleCommentAdded);
+    };
   }, [post?.id]);
 
   // showRepliesの変更を監視
@@ -306,13 +332,46 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
   };
 
   // 返信ダイアログが閉じられたときのハンドラー
-  const handleReplyDialogClose = (open: boolean) => {
-    setIsReplyDialogOpen(open);
+  const handleReplyDialogClose = (
+    open: boolean,
+    commentAdded: boolean = false
+  ) => {
+    console.log("[PostCard] 返信ダイアログ状態変更:", { open, commentAdded });
 
-    // ダイアログが閉じられたときにコメント数を更新
+    // ダイアログが閉じられる場合（open = false）
     if (!open) {
-      refreshCommentCount();
+      if (commentAdded) {
+        // コメントが追加された場合は楽観的にUI更新
+        console.log(
+          "[PostCard] コメント追加確認 - 楽観的にカウントアップします"
+        );
+        setCommentCount((prev) => prev + 1);
+
+        // さらに詳細画面では返信セクションを表示
+        if (isDetail && !showReplies) {
+          setShowReplies(true);
+        }
+      }
+
+      // コメント数を再取得（APIから最新データを取得）
+      // 少し遅延させて、DBへの書き込みが完了する時間を確保
+      setTimeout(() => {
+        refreshCommentCount();
+      }, 500);
     }
+
+    // 状態を更新
+    setIsReplyDialogOpen(open);
+  };
+
+  // コメント数の変更を処理するコールバック関数
+  const handleReplyCountChange = (count: number) => {
+    console.log("[PostCard] コメント数更新:", {
+      前の数: commentCount,
+      新しい数: count,
+    });
+    // 楽観的UI更新: 実際のコメント数を表示
+    setCommentCount(count);
   };
 
   // AnimatePresenceを使って投稿カードにアニメーション効果を追加
@@ -499,7 +558,10 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                         ? "詳細ページモード: 返信セクションを表示中"
                         : "通常モード: ユーザーの操作で返信表示"}
                     </div>
-                    <ReplySection postId={post.id} />
+                    <ReplySection
+                      postId={post.id}
+                      onReplyCountChange={handleReplyCountChange}
+                    />
                   </motion.div>
                 ) : (
                   <div className="text-sm text-muted-foreground py-2">
