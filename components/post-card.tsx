@@ -56,6 +56,8 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     useState("投稿が正常に削除されました");
   // 削除確認ダイアログの表示状態
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // コメント数を管理するstate
+  const [commentCount, setCommentCount] = useState(0);
 
   // マウント時にデバッグログを出力
   useEffect(() => {
@@ -74,6 +76,31 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       setShowReplies(true);
     }
   }, [isDetail]);
+
+  // マウント時にコメント数を取得
+  useEffect(() => {
+    const fetchCommentCount = async () => {
+      try {
+        if (!post?.id) return;
+
+        console.log("[PostCard] コメント数取得開始:", post.id);
+        const response = await fetch(`/api/posts/${post.id}/replies/count`);
+
+        if (!response.ok) {
+          console.error("コメント数取得エラー:", response.statusText);
+          return;
+        }
+
+        const data = await response.json();
+        console.log("[PostCard] コメント数取得成功:", data);
+        setCommentCount(data.count || 0);
+      } catch (error) {
+        console.error("コメント数取得エラー:", error);
+      }
+    };
+
+    fetchCommentCount();
+  }, [post?.id]);
 
   // showRepliesの変更を監視
   useEffect(() => {
@@ -257,6 +284,37 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     pathname: window.location.pathname,
   });
 
+  // コメント数を再取得する関数
+  const refreshCommentCount = async () => {
+    try {
+      if (!post?.id) return;
+
+      console.log("[PostCard] コメント数再取得:", post.id);
+      const response = await fetch(`/api/posts/${post.id}/replies/count`);
+
+      if (!response.ok) {
+        console.error("コメント数再取得エラー:", response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      console.log("[PostCard] コメント数取得成功:", data);
+      setCommentCount(data.count || 0);
+    } catch (error) {
+      console.error("コメント数再取得エラー:", error);
+    }
+  };
+
+  // 返信ダイアログが閉じられたときのハンドラー
+  const handleReplyDialogClose = (open: boolean) => {
+    setIsReplyDialogOpen(open);
+
+    // ダイアログが閉じられたときにコメント数を更新
+    if (!open) {
+      refreshCommentCount();
+    }
+  };
+
   // AnimatePresenceを使って投稿カードにアニメーション効果を追加
   return (
     <>
@@ -392,7 +450,7 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                     onClick={handleCommentClick}
                   >
                     <MessageCircle className="h-5 w-5" />
-                    <span>0</span>
+                    <span>{commentCount}</span>
                   </Button>
                 </div>
 
@@ -454,7 +512,7 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
               <ReplyDialog
                 open={isReplyDialogOpen}
-                onOpenChange={setIsReplyDialogOpen}
+                onOpenChange={handleReplyDialogClose}
                 postId={post.id}
               />
             </Card>
