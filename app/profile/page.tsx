@@ -418,8 +418,9 @@ export default function ProfilePage() {
             </div>
 
             {/* フォロー数などはAPIから取得するように将来的に修正 */}
+            {/* コメントアウト: フォロー・フォロワー表示
             <motion.div className="flex gap-4" variants={item}>
-              <Link href="#" className="hover:underline">
+              <Link href={`/follows?userId=${authUser.id}&tab=following`} className="hover:underline">
                 <span className="font-semibold">
                   {isLoadingFollowStats ? (
                     <Loader2 className="h-3 w-3 inline animate-spin" />
@@ -429,7 +430,7 @@ export default function ProfilePage() {
                 </span>
                 <span className="text-muted-foreground ml-1">フォロー中</span>
               </Link>
-              <Link href="#" className="hover:underline">
+              <Link href={`/follows?userId=${authUser.id}&tab=followers`} className="hover:underline">
                 <span className="font-semibold">
                   {isLoadingFollowStats ? (
                     <Loader2 className="h-3 w-3 inline animate-spin" />
@@ -439,9 +440,8 @@ export default function ProfilePage() {
                 </span>
                 <span className="text-muted-foreground ml-1">フォロワー</span>
               </Link>
-              {/* デバッグ用: 現在のフォロー統計値をコメントで表示 */}
-              {/* followingCount: {followStats.followingCount}, followerCount: {followStats.followerCount} */}
             </motion.div>
+            */}
           </motion.div>
         </motion.div>
 
