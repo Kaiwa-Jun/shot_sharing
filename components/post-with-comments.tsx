@@ -32,6 +32,8 @@ interface PostWithCommentsProps {
 export function PostWithComments({ post }: PostWithCommentsProps) {
   const router = useRouter();
   const comments = post.comments || [];
+  // nullの場合はundefinedに変換する
+  const avatarUrl = post.User?.avatarUrl ? post.User.avatarUrl : undefined;
 
   // 投稿日時を「〜前」の形式でフォーマット
   const formatDate = (dateString?: string) => {
@@ -68,7 +70,7 @@ export function PostWithComments({ post }: PostWithCommentsProps) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Avatar>
-                <AvatarImage src={post.User?.avatarUrl} alt="User Avatar" />
+                <AvatarImage src={avatarUrl} alt="User Avatar" />
                 <AvatarFallback>
                   {post.User?.email
                     ? post.User.email.substring(0, 2).toUpperCase()
