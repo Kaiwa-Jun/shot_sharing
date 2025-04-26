@@ -389,16 +389,14 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto pb-20">
-      {/* Cover Image */}
+      {/* Cover Image - 青い背景部分を削除 */}
       <motion.div
-        className="relative h-48 bg-gradient-to-r from-blue-400 to-blue-600"
+        className="relative h-48"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6 }}
       >
-        <div className="absolute bottom-4 left-4">
-          <Camera className="h-6 w-6 text-white/80" />
-        </div>
+        {/* カメラアイコンを削除 */}
       </motion.div>
 
       {/* Profile Header */}
@@ -415,7 +413,7 @@ export default function ProfilePage() {
           }}
         >
           <div className="relative">
-            <div className="h-32 w-32 rounded-full border-4 border-background bg-muted">
+            <div className="h-32 w-32 rounded-full border-4 border-gray-300 bg-muted shadow-md">
               <img
                 src={
                   dbUser?.avatarUrl ||
@@ -426,9 +424,7 @@ export default function ProfilePage() {
                 className="h-full w-full rounded-full object-cover"
               />
             </div>
-            <button className="absolute bottom-0 right-0 rounded-full bg-primary p-2 text-primary-foreground hover:bg-primary/90">
-              <Camera className="h-4 w-4" />
-            </button>
+            {/* ユーザー画像下のカメラアイコンを削除 */}
           </div>
         </motion.div>
 
