@@ -18,6 +18,9 @@ export type User = {
   email: string;
   instagramUrl: string | null;
   twitterUrl: string | null;
+  bio?: string | null;
+  name?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type Like = {

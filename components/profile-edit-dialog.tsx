@@ -184,6 +184,7 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
             </div>
 
             {/* Social Media Links */}
+            {/* SNS設定を非表示
             <div className="space-y-2">
               <h3 className="text-sm font-medium mb-2">SNS</h3>
               <div className="space-y-2 rounded-lg border">
@@ -222,6 +223,7 @@ export function ProfileEditDialog({ profile, onSave }: ProfileEditDialogProps) {
                 </button>
               </div>
             </div>
+            */}
 
             <div className="flex justify-between gap-2 pt-4 border-t">
               <Button

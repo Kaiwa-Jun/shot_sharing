@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/post-card";
+import { PostWithComments } from "@/components/post-with-comments";
 import { ProfileEditDialog } from "@/components/profile-edit-dialog";
 import { SocialLinkDialog } from "@/components/social-link-dialog";
 import Link from "next/link";
@@ -67,8 +68,10 @@ export default function ProfilePage() {
   });
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
+  const [commentedPosts, setCommentedPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
+  const [isLoadingCommentedPosts, setIsLoadingCommentedPosts] = useState(false);
   const [followStats, setFollowStats] = useState({
     followingCount: 0,
     followerCount: 0,
@@ -193,6 +196,50 @@ export default function ProfilePage() {
     }
   }, [authUser, activeTab]);
 
+  // コメントした投稿を取得
+  useEffect(() => {
+    const fetchCommentedPosts = async () => {
+      if (!authUser) return;
+
+      try {
+        setIsLoadingCommentedPosts(true);
+        console.log("[DEBUG] コメント投稿取得開始: ユーザーID", authUser.id);
+
+        // コメントした投稿取得APIを使用
+        const response = await fetch(
+          `/api/comments/user?userId=${authUser.id}`
+        );
+
+        console.log("[DEBUG] API応答ステータス:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(
+            "[DEBUG] コメント投稿取得エラー:",
+            response.status,
+            errorData
+          );
+          throw new Error("コメントした投稿の取得に失敗しました");
+        }
+
+        const data = await response.json();
+        console.log("[DEBUG] コメント投稿取得数:", data.data?.length || 0);
+
+        // APIからの応答を直接使用
+        setCommentedPosts(data.data || []);
+      } catch (error) {
+        console.error("[DEBUG] コメント投稿取得エラー:", error);
+        toast.error("コメントした投稿の取得に失敗しました");
+      } finally {
+        setIsLoadingCommentedPosts(false);
+      }
+    };
+
+    if (activeTab === "replies") {
+      fetchCommentedPosts();
+    }
+  }, [authUser, activeTab]);
+
   // フォロー数・フォロワー数を取得
   useEffect(() => {
     const fetchFollowStats = async () => {
@@ -261,17 +308,58 @@ export default function ProfilePage() {
   }, [authUser]);
 
   const handleProfileSave = async (updatedProfile: any) => {
-    if (!dbUser) return;
+    if (!authUser) {
+      console.error("[DEBUG] プロフィール更新失敗: 認証ユーザーが存在しません");
+      toast.error("プロフィール更新に失敗しました: ログインしてください");
+      return;
+    }
+
+    console.log("[DEBUG] プロフィール更新開始:", {
+      name: updatedProfile.name,
+      bio: updatedProfile.bio,
+      twitter: updatedProfile.twitter,
+      instagram: updatedProfile.instagram,
+      userId: authUser.id,
+    });
 
     try {
-      // Prismaデータベースとユーザープロフィールを更新
-      await updateUserProfile({
-        name: updatedProfile.name,
-        bio: updatedProfile.bio,
-        // SNSリンクはSocialLinkDialogで個別に処理
+      // 直接APIを呼び出してユーザープロフィールを更新
+      const response = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: updatedProfile.name,
+          bio: updatedProfile.bio,
+          twitterUrl: updatedProfile.twitter,
+          instagramUrl: updatedProfile.instagram,
+        }),
       });
+
+      console.log("[DEBUG] プロフィール更新API応答:", response.status);
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        console.log("[DEBUG] 更新されたユーザーデータ:", updatedUser);
+        toast.success("プロフィールを更新しました");
+
+        // 更新されたユーザーデータを即時反映
+        if (updateUserProfile) {
+          updateUserProfile({});
+        }
+      } else {
+        const errorText = await response.text();
+        console.error(
+          "[DEBUG] プロフィール更新APIエラー:",
+          response.status,
+          errorText
+        );
+        toast.error("プロフィールの更新に失敗しました");
+      }
     } catch (error) {
-      console.error("プロフィール更新エラー:", error);
+      console.error("[DEBUG] プロフィール更新エラー:", error);
+      toast.error("プロフィールの更新に失敗しました");
     }
   };
 
@@ -397,24 +485,38 @@ export default function ProfilePage() {
             <div className="space-y-2 text-muted-foreground">
               {/* 位置情報は省略可能 */}
 
+              {/* SNSアイコンを非表示にしました
               <motion.div className="flex items-center gap-4" variants={item}>
-                <button
-                  onClick={() =>
-                    setSocialDialog({ open: true, type: "twitter" })
-                  }
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Twitter className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() =>
-                    setSocialDialog({ open: true, type: "instagram" })
-                  }
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Instagram className="h-5 w-5" />
-                </button>
+                {(dbUser?.twitterUrl ||
+                  authUser.user_metadata?.twitter_url) && (
+                  <a
+                    href={`https://twitter.com/${
+                      dbUser?.twitterUrl || authUser.user_metadata?.twitter_url
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Twitter className="h-5 w-5" />
+                  </a>
+                )}
+
+                {(dbUser?.instagramUrl ||
+                  authUser.user_metadata?.instagram_url) && (
+                  <a
+                    href={`https://instagram.com/${
+                      dbUser?.instagramUrl ||
+                      authUser.user_metadata?.instagram_url
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Instagram className="h-5 w-5" />
+                  </a>
+                )}
               </motion.div>
+              */}
             </div>
 
             {/* フォロー数などはAPIから取得するように将来的に修正 */}
@@ -519,7 +621,22 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {(activeTab === "replies" || activeTab === "media") && (
+            {/* 返信タブ */}
+            {activeTab === "replies" && isLoadingCommentedPosts ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : activeTab === "replies" && commentedPosts.length > 0 ? (
+              commentedPosts.map((post) => (
+                <PostWithComments key={post.id} post={post} />
+              ))
+            ) : activeTab === "replies" ? (
+              <div className="py-8 text-center text-muted-foreground">
+                まだコメントした投稿はありません
+              </div>
+            ) : null}
+
+            {activeTab === "media" && (
               <div className="py-8 text-center text-muted-foreground">
                 まだ{TABS.find((t) => t.id === activeTab)?.label}はありません
               </div>
