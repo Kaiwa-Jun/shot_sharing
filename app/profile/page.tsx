@@ -69,6 +69,11 @@ export default function ProfilePage() {
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
+  const [followStats, setFollowStats] = useState({
+    followingCount: 0,
+    followerCount: 0,
+  });
+  const [isLoadingFollowStats, setIsLoadingFollowStats] = useState(false);
 
   // セッションからユーザー情報を取得
   const { authUser, dbUser, isLoading, updateUserProfile } = useSession();
@@ -187,6 +192,73 @@ export default function ProfilePage() {
       fetchLikedPosts();
     }
   }, [authUser, activeTab]);
+
+  // フォロー数・フォロワー数を取得
+  useEffect(() => {
+    const fetchFollowStats = async () => {
+      if (!authUser) return;
+
+      // デバッグ: 詳細なユーザー情報ログ
+      console.log("[DEBUG] フォロー統計取得時のユーザー情報:", {
+        id: authUser.id,
+        email: authUser.email,
+        metadata: authUser.user_metadata,
+      });
+
+      try {
+        setIsLoadingFollowStats(true);
+        console.log("[DEBUG] フォロー統計取得開始: ユーザーID", authUser.id);
+
+        // リクエストURLを変数に格納して詳細ログ出力
+        const requestUrl = `/api/follows/count?userId=${authUser.id}`;
+        console.log("[DEBUG] フォロー統計API リクエストURL:", requestUrl);
+
+        const response = await fetch(requestUrl);
+        console.log("[DEBUG] フォロー統計API応答ステータス:", response.status);
+
+        // レスポンスのクローンを作成して生データを確認
+        const responseClone = response.clone();
+        const rawResponseText = await responseClone.text();
+        console.log("[DEBUG] フォロー統計API生レスポンス:", rawResponseText);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(
+            "[DEBUG] フォロー統計取得エラー:",
+            response.status,
+            errorData
+          );
+          throw new Error("フォロー情報の取得に失敗しました");
+        }
+
+        // JSON解析を別で行い、エラーが発生したらキャッチ
+        let data;
+        try {
+          data = JSON.parse(rawResponseText);
+          console.log("[DEBUG] フォロー統計 パース後データ:", data);
+        } catch (parseError) {
+          console.error("[DEBUG] JSONパースエラー:", parseError);
+          throw new Error("フォロー情報のパースに失敗しました");
+        }
+
+        console.log("[DEBUG] フォロー統計 設定前の状態:", followStats);
+        setFollowStats(data);
+        console.log("[DEBUG] フォロー統計 設定後の値:", data);
+      } catch (error) {
+        console.error("[DEBUG] フォロー統計取得エラー:", error);
+        toast.error("フォロー情報の取得に失敗しました");
+      } finally {
+        setIsLoadingFollowStats(false);
+      }
+    };
+
+    if (authUser) {
+      console.log("[DEBUG] フォロー統計取得関数を呼び出します");
+      fetchFollowStats();
+    } else {
+      console.log("[DEBUG] authUserが未定義のためフォロー統計を取得しません");
+    }
+  }, [authUser]);
 
   const handleProfileSave = async (updatedProfile: any) => {
     if (!dbUser) return;
@@ -346,16 +418,30 @@ export default function ProfilePage() {
             </div>
 
             {/* フォロー数などはAPIから取得するように将来的に修正 */}
+            {/* コメントアウト: フォロー・フォロワー表示
             <motion.div className="flex gap-4" variants={item}>
-              <Link href="#" className="hover:underline">
-                <span className="font-semibold">0</span>
+              <Link href={`/follows?userId=${authUser.id}&tab=following`} className="hover:underline">
+                <span className="font-semibold">
+                  {isLoadingFollowStats ? (
+                    <Loader2 className="h-3 w-3 inline animate-spin" />
+                  ) : (
+                    followStats.followingCount
+                  )}
+                </span>
                 <span className="text-muted-foreground ml-1">フォロー中</span>
               </Link>
-              <Link href="#" className="hover:underline">
-                <span className="font-semibold">0</span>
+              <Link href={`/follows?userId=${authUser.id}&tab=followers`} className="hover:underline">
+                <span className="font-semibold">
+                  {isLoadingFollowStats ? (
+                    <Loader2 className="h-3 w-3 inline animate-spin" />
+                  ) : (
+                    followStats.followerCount
+                  )}
+                </span>
                 <span className="text-muted-foreground ml-1">フォロワー</span>
               </Link>
             </motion.div>
+            */}
           </motion.div>
         </motion.div>
 
