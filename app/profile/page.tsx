@@ -308,17 +308,58 @@ export default function ProfilePage() {
   }, [authUser]);
 
   const handleProfileSave = async (updatedProfile: any) => {
-    if (!dbUser) return;
+    if (!authUser) {
+      console.error("[DEBUG] プロフィール更新失敗: 認証ユーザーが存在しません");
+      toast.error("プロフィール更新に失敗しました: ログインしてください");
+      return;
+    }
+
+    console.log("[DEBUG] プロフィール更新開始:", {
+      name: updatedProfile.name,
+      bio: updatedProfile.bio,
+      twitter: updatedProfile.twitter,
+      instagram: updatedProfile.instagram,
+      userId: authUser.id,
+    });
 
     try {
-      // Prismaデータベースとユーザープロフィールを更新
-      await updateUserProfile({
-        name: updatedProfile.name,
-        bio: updatedProfile.bio,
-        // SNSリンクはSocialLinkDialogで個別に処理
+      // 直接APIを呼び出してユーザープロフィールを更新
+      const response = await fetch("/api/user", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: updatedProfile.name,
+          bio: updatedProfile.bio,
+          twitterUrl: updatedProfile.twitter,
+          instagramUrl: updatedProfile.instagram,
+        }),
       });
+
+      console.log("[DEBUG] プロフィール更新API応答:", response.status);
+
+      if (response.ok) {
+        const updatedUser = await response.json();
+        console.log("[DEBUG] 更新されたユーザーデータ:", updatedUser);
+        toast.success("プロフィールを更新しました");
+
+        // 更新されたユーザーデータを即時反映
+        if (updateUserProfile) {
+          updateUserProfile({});
+        }
+      } else {
+        const errorText = await response.text();
+        console.error(
+          "[DEBUG] プロフィール更新APIエラー:",
+          response.status,
+          errorText
+        );
+        toast.error("プロフィールの更新に失敗しました");
+      }
     } catch (error) {
-      console.error("プロフィール更新エラー:", error);
+      console.error("[DEBUG] プロフィール更新エラー:", error);
+      toast.error("プロフィールの更新に失敗しました");
     }
   };
 
@@ -444,24 +485,38 @@ export default function ProfilePage() {
             <div className="space-y-2 text-muted-foreground">
               {/* 位置情報は省略可能 */}
 
+              {/* SNSアイコンを非表示にしました
               <motion.div className="flex items-center gap-4" variants={item}>
-                <button
-                  onClick={() =>
-                    setSocialDialog({ open: true, type: "twitter" })
-                  }
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Twitter className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() =>
-                    setSocialDialog({ open: true, type: "instagram" })
-                  }
-                  className="text-primary hover:text-primary/80 transition-colors"
-                >
-                  <Instagram className="h-5 w-5" />
-                </button>
+                {(dbUser?.twitterUrl ||
+                  authUser.user_metadata?.twitter_url) && (
+                  <a
+                    href={`https://twitter.com/${
+                      dbUser?.twitterUrl || authUser.user_metadata?.twitter_url
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Twitter className="h-5 w-5" />
+                  </a>
+                )}
+
+                {(dbUser?.instagramUrl ||
+                  authUser.user_metadata?.instagram_url) && (
+                  <a
+                    href={`https://instagram.com/${
+                      dbUser?.instagramUrl ||
+                      authUser.user_metadata?.instagram_url
+                    }`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Instagram className="h-5 w-5" />
+                  </a>
+                )}
               </motion.div>
+              */}
             </div>
 
             {/* フォロー数などはAPIから取得するように将来的に修正 */}
