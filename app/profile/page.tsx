@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { PostCard } from "@/components/post-card";
+import { PostWithComments } from "@/components/post-with-comments";
 import { ProfileEditDialog } from "@/components/profile-edit-dialog";
 import { SocialLinkDialog } from "@/components/social-link-dialog";
 import Link from "next/link";
@@ -67,8 +68,10 @@ export default function ProfilePage() {
   });
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [likedPosts, setLikedPosts] = useState<Post[]>([]);
+  const [commentedPosts, setCommentedPosts] = useState<Post[]>([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(false);
   const [isLoadingLikedPosts, setIsLoadingLikedPosts] = useState(false);
+  const [isLoadingCommentedPosts, setIsLoadingCommentedPosts] = useState(false);
   const [followStats, setFollowStats] = useState({
     followingCount: 0,
     followerCount: 0,
@@ -190,6 +193,50 @@ export default function ProfilePage() {
 
     if (activeTab === "likes") {
       fetchLikedPosts();
+    }
+  }, [authUser, activeTab]);
+
+  // コメントした投稿を取得
+  useEffect(() => {
+    const fetchCommentedPosts = async () => {
+      if (!authUser) return;
+
+      try {
+        setIsLoadingCommentedPosts(true);
+        console.log("[DEBUG] コメント投稿取得開始: ユーザーID", authUser.id);
+
+        // コメントした投稿取得APIを使用
+        const response = await fetch(
+          `/api/comments/user?userId=${authUser.id}`
+        );
+
+        console.log("[DEBUG] API応答ステータス:", response.status);
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error(
+            "[DEBUG] コメント投稿取得エラー:",
+            response.status,
+            errorData
+          );
+          throw new Error("コメントした投稿の取得に失敗しました");
+        }
+
+        const data = await response.json();
+        console.log("[DEBUG] コメント投稿取得数:", data.data?.length || 0);
+
+        // APIからの応答を直接使用
+        setCommentedPosts(data.data || []);
+      } catch (error) {
+        console.error("[DEBUG] コメント投稿取得エラー:", error);
+        toast.error("コメントした投稿の取得に失敗しました");
+      } finally {
+        setIsLoadingCommentedPosts(false);
+      }
+    };
+
+    if (activeTab === "replies") {
+      fetchCommentedPosts();
     }
   }, [authUser, activeTab]);
 
@@ -519,7 +566,22 @@ export default function ProfilePage() {
               </div>
             ) : null}
 
-            {(activeTab === "replies" || activeTab === "media") && (
+            {/* 返信タブ */}
+            {activeTab === "replies" && isLoadingCommentedPosts ? (
+              <div className="py-8 flex justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : activeTab === "replies" && commentedPosts.length > 0 ? (
+              commentedPosts.map((post) => (
+                <PostWithComments key={post.id} post={post} />
+              ))
+            ) : activeTab === "replies" ? (
+              <div className="py-8 text-center text-muted-foreground">
+                まだコメントした投稿はありません
+              </div>
+            ) : null}
+
+            {activeTab === "media" && (
               <div className="py-8 text-center text-muted-foreground">
                 まだ{TABS.find((t) => t.id === activeTab)?.label}はありません
               </div>
