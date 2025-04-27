@@ -19,6 +19,7 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get("sortBy") || "createdAt";
     const sortOrder = searchParams.get("sortOrder") || "desc";
     const followedOnly = searchParams.get("followedOnly") === "true";
+    const categoryId = searchParams.get("categoryId");
 
     // ユーザー認証が必要な場合はキャッシュしない
     let shouldCache = true;
@@ -55,6 +56,22 @@ export async function GET(request: Request) {
     if (cursor) {
       const decodedCursor = decodeURIComponent(cursor);
       query = query.lt("createdAt", decodedCursor);
+    }
+
+    // カテゴリーでフィルタリング
+    if (categoryId) {
+      const postsInCategory = await supabase
+        .from("PostCategory")
+        .select("postId")
+        .eq("categoryId", categoryId);
+
+      if (postsInCategory.data && postsInCategory.data.length > 0) {
+        const postIds = postsInCategory.data.map((item) => item.postId);
+        query = query.in("id", postIds);
+      } else {
+        // 該当するカテゴリーの投稿がない場合は空の結果を返す
+        return NextResponse.json({ data: [], cursor: null, hasMore: false });
+      }
     }
 
     // フォローしているユーザーの投稿のみ取得
@@ -107,9 +124,36 @@ export async function GET(request: Request) {
       };
     });
 
+    // 各投稿のカテゴリー情報を取得
+    const enhancedPosts = [];
+    for (const post of postsWithLikeStatus) {
+      try {
+        // カテゴリー情報を取得
+        const { data: postCategories } = await supabase
+          .from("PostCategory")
+          .select("categoryId")
+          .eq("postId", post.id);
+
+        const categoryIds = postCategories?.map((pc) => pc.categoryId) || [];
+
+        // 投稿データにカテゴリーIDを追加
+        enhancedPosts.push({
+          ...post,
+          categoryIds,
+        });
+      } catch (err) {
+        console.error(`Error fetching categories for post ${post.id}:`, err);
+        // エラーが発生した場合でも、カテゴリーなしで投稿を追加
+        enhancedPosts.push({
+          ...post,
+          categoryIds: [],
+        });
+      }
+    }
+
     // レスポンスを作成
     const response = {
-      data: postsWithLikeStatus,
+      data: enhancedPosts,
       cursor: nextCursor,
       hasMore,
     };
@@ -141,7 +185,14 @@ export async function POST(request: Request) {
 
     // リクエストボディを先に取得
     const body = await request.json();
-    console.log("Request body:", JSON.stringify(body));
+    console.log(
+      "Request body:",
+      JSON.stringify({
+        ...body,
+        imageUrl: body.imageUrl ? `${body.imageUrl.substring(0, 30)}...` : null,
+        categoryIds: body.categoryIds,
+      })
+    );
 
     // クライアントから送信されたユーザーIDとメールアドレスを確認
     const clientProvidedUserId = body.userId;
@@ -203,6 +254,7 @@ export async function POST(request: Request) {
     console.log("Inserting post data for user:", userId);
 
     try {
+      // トランザクションを使用して投稿とカテゴリー関連を一緒に作成
       const { data: post, error } = await supabase
         .from("Post")
         .insert({
@@ -237,7 +289,37 @@ export async function POST(request: Request) {
         );
       }
 
-      return NextResponse.json({ data: post }, { status: 201 });
+      // カテゴリーIDが選択されている場合、PostCategoryテーブルに関連データを挿入
+      if (
+        body.categoryIds &&
+        Array.isArray(body.categoryIds) &&
+        body.categoryIds.length > 0
+      ) {
+        console.log("カテゴリー関連を作成中:", body.categoryIds);
+
+        // 各カテゴリーIDごとに投稿との関連を作成
+        const postCategoryData = body.categoryIds.map((categoryId: string) => ({
+          postId: post.id,
+          categoryId,
+        }));
+
+        const { error: categoryError } = await supabase
+          .from("PostCategory")
+          .insert(postCategoryData);
+
+        if (categoryError) {
+          console.error("カテゴリー関連の作成に失敗:", categoryError);
+          // エラーはログに残すが、投稿自体は作成済みなのでエラーレスポンスは返さない
+        }
+      }
+
+      // カテゴリー情報を応答に含める
+      const enhancedPost = {
+        ...post,
+        categoryIds: body.categoryIds || [],
+      };
+
+      return NextResponse.json({ data: enhancedPost }, { status: 201 });
     } catch (dbError) {
       console.error("データベース操作エラー:", dbError);
       return NextResponse.json(

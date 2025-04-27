@@ -11,6 +11,7 @@ export type Post = {
   User: User;
   Like: Like[];
   userLiked?: boolean; // フロントエンド用（API応答時に追加）
+  categoryIds?: string[]; // カテゴリーID配列
 };
 
 export type User = {

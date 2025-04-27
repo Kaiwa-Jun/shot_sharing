@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { useSession } from "@/app/auth/session-provider";
 import { usePostsContext } from "@/lib/contexts/posts-context";
+import { CategorySelect } from "@/components/category-select";
 import exifr from "exifr";
 import EXIF from "exif-js";
 import heic2any from "heic2any";
@@ -94,6 +95,7 @@ export function CreatePostDialog({
   const [isLoading, setIsLoading] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const { toast } = useToast();
   const { authUser, dbUser } = useSession();
   const { addNewPost, refreshPosts } = usePostsContext();
@@ -346,6 +348,8 @@ export function CreatePostDialog({
         shootingDate: exifData.shootingDate,
         userId: dbUser?.id || authUser?.id,
         userEmail: authUser?.email,
+        categoryIds:
+          selectedCategories.length > 0 ? selectedCategories : undefined,
       };
 
       console.log("投稿データ:", {
@@ -353,6 +357,7 @@ export function CreatePostDialog({
         imageUrl: postData.imageUrl
           ? `${postData.imageUrl.substring(0, 30)}...`
           : null,
+        categoryIds: postData.categoryIds,
       });
 
       // セッションの状態を確認
@@ -386,6 +391,7 @@ export function CreatePostDialog({
       setImageFile(null);
       setDescription("");
       setExifData({});
+      setSelectedCategories([]);
 
       // ダイアログを閉じる
       onOpenChange(false);
@@ -484,6 +490,12 @@ export function CreatePostDialog({
               className="w-full min-h-[100px] p-3 bg-background border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
             />
           </div>
+
+          {/* Category Select */}
+          <CategorySelect
+            selectedCategories={selectedCategories}
+            onChange={setSelectedCategories}
+          />
 
           {/* Location Toggle */}
           <div className="space-y-4">

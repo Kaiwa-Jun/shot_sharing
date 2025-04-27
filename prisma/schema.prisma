@@ -41,6 +41,7 @@ model Post {
   User         User      @relation(fields: [userId], references: [id])
   likes        Like[]
   comments     Comment[]
+  categories   PostCategory[]
 }
 
 model Like {
@@ -76,4 +77,20 @@ model Comment {
   Post      Post      @relation(fields: [postId], references: [id])
   parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
   replies   Comment[] @relation("CommentReplies")
+}
+
+model Category {
+  id    String        @id @default(uuid())
+  name  String        @unique
+  posts PostCategory[]
+}
+
+model PostCategory {
+  id         String   @id @default(uuid())
+  postId     String
+  categoryId String
+  post       Post     @relation(fields: [postId], references: [id])
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  @@unique([postId, categoryId])
 }
