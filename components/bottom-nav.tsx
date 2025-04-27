@@ -9,8 +9,10 @@ import { useEffect, useState, useCallback } from "react";
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/search", icon: Search, label: "Search" },
+  /* コメントアウト：一時的に非表示
   { href: "/community", icon: Users, label: "Community" },
   { href: "/notifications", icon: Bell, label: "Notifications" },
+  */
 ];
 
 export function BottomNav({ className }: { className?: string }) {
@@ -58,7 +60,7 @@ export function BottomNav({ className }: { className?: string }) {
         className
       )}
     >
-      <div className="grid grid-cols-4 gap-1">
+      <div className="flex justify-center gap-16">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (

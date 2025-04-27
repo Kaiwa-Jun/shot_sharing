@@ -12,8 +12,10 @@ import { motion } from "framer-motion";
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
   { href: "/search", icon: Search, label: "Search" },
+  /* コメントアウト：一時的に非表示
   { href: "/community", icon: Users, label: "Community" },
   { href: "/notifications", icon: Bell, label: "Notifications" },
+  */
 ];
 
 export function SideNav({ className }: { className?: string }) {
@@ -27,7 +29,7 @@ export function SideNav({ className }: { className?: string }) {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = pathname === item.href;
-            
+
             return (
               <Link
                 key={item.href}
@@ -42,19 +44,25 @@ export function SideNav({ className }: { className?: string }) {
                     transition={{
                       type: "spring",
                       stiffness: 500,
-                      damping: 30
+                      damping: 30,
                     }}
                   />
                 )}
                 <span className="relative z-10 flex items-center">
-                  <Icon className={cn(
-                    "h-5 w-5",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )} />
-                  <span className={cn(
-                    "ml-3",
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  )}>{item.label}</span>
+                  <Icon
+                    className={cn(
+                      "h-5 w-5",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}
+                  />
+                  <span
+                    className={cn(
+                      "ml-3",
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    )}
+                  >
+                    {item.label}
+                  </span>
                 </span>
               </Link>
             );
