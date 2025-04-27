@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 import Image from "next/image";
 import { formatDistanceToNow } from "date-fns";
 import { ja } from "date-fns/locale";
+import { useRouter } from "next/navigation";
 
 // 型定義
 interface Category {
@@ -80,6 +81,7 @@ const postItem = {
 export const dynamic = "force-dynamic";
 
 export default function SearchPage() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -148,6 +150,12 @@ export default function SearchPage() {
     console.log(`カテゴリーがクリックされました: ${categoryId}`);
     setSelectedCategory(categoryId);
     fetchPostsByCategory(categoryId);
+  };
+
+  // 投稿カードがクリックされたときの処理
+  const handlePostClick = (postId: string) => {
+    console.log(`投稿がクリックされました: ${postId}`);
+    router.push(`/posts/${postId}`);
   };
 
   // ローディング中の表示
@@ -274,7 +282,13 @@ export default function SearchPage() {
                   <motion.div
                     key={post.id}
                     variants={postItem}
-                    className="rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow"
+                    className="rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow cursor-pointer"
+                    whileHover={{
+                      scale: 1.03,
+                      transition: { duration: 0.2 },
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handlePostClick(post.id)}
                   >
                     <div className="relative aspect-square">
                       <Image
