@@ -61,20 +61,9 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
   // コメント数を管理するstate
   const [commentCount, setCommentCount] = useState(0);
 
-  // マウント時にデバッグログを出力
-  useEffect(() => {
-    console.log("[PostCard] マウント時の状態:", {
-      postId: post?.id,
-      isDetail,
-      showReplies,
-      pathname: window.location.pathname,
-    });
-  }, []);
-
   // 詳細画面の場合は、マウント時に返信を表示
   useEffect(() => {
     if (isDetail) {
-      console.log("[PostCard] 詳細画面のため返信を表示します");
       setShowReplies(true);
     }
   }, [isDetail]);
@@ -85,16 +74,13 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       try {
         if (!post?.id) return;
 
-        console.log("[PostCard] コメント数取得開始:", post.id);
         const response = await fetch(`/api/posts/${post.id}/replies/count`);
 
         if (!response.ok) {
-          console.error("コメント数取得エラー:", response.statusText);
           return;
         }
 
         const data = await response.json();
-        console.log("[PostCard] コメント数取得成功:", data);
         setCommentCount(data.count || 0);
       } catch (error) {
         console.error("コメント数取得エラー:", error);
@@ -106,10 +92,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     // コメント追加イベントリスナーを設定
     const handleCommentAdded = (commentPostId: string) => {
       if (commentPostId === post.id) {
-        console.log("[PostCard] コメント追加イベントを受信:", {
-          postId: post.id,
-        });
-
         // 楽観的UI更新: コメント数をすぐに増やす
         setCommentCount((prev) => prev + 1);
 
@@ -128,15 +110,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       eventEmitter.off(EVENTS.COMMENT_ADDED, handleCommentAdded);
     };
   }, [post?.id]);
-
-  // showRepliesの変更を監視
-  useEffect(() => {
-    console.log("[PostCard] 返信表示状態が変更されました:", {
-      showReplies,
-      isDetail,
-      shouldShowReplySection: showReplies || isDetail,
-    });
-  }, [showReplies, isDetail]);
 
   // アラートが表示されたら、一定時間後に非表示にする
   useEffect(() => {
@@ -230,13 +203,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       return;
     }
 
-    console.log("削除処理開始", {
-      postId: post.id,
-      postUserEmail: userEmail, // 投稿者のメールアドレス
-      currentUserEmail: authUser.email, // 現在のユーザーのメールアドレス
-      isCurrentUser, // ユーザー比較結果
-    });
-
     // 投稿者とログインユーザーが一致するか再確認
     // IDでは不一致の場合があるため、メールアドレスで比較
     if (!isCurrentUser) {
@@ -246,7 +212,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
     try {
       // 新しいシンプルなAPIエンドポイントを使用
-      console.log("新しい削除エンドポイントを呼び出し: /api/delete-post");
       const response = await fetch("/api/delete-post", {
         method: "POST",
         headers: {
@@ -258,17 +223,12 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
         }),
       });
 
-      console.log("削除API応答:", response.status, response.statusText);
-
       let data;
       try {
         data = await response.json();
       } catch (parseError) {
-        console.error("レスポンス解析エラー:", parseError);
         throw new Error("サーバーからの応答を解析できませんでした");
       }
-
-      console.log("削除API応答データ:", data);
 
       if (!response.ok) {
         throw new Error(data.error || "投稿の削除に失敗しました");
@@ -284,12 +244,10 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       });
 
       // カスタムアラートを表示
-      console.log("削除成功: アラートを表示します");
       setShowSuccessAlert(true);
 
       // 詳細ページにいる場合はホームに戻る
       if (window.location.pathname.includes(`/posts/${post.id}`)) {
-        console.log("詳細ページからホームページへリダイレクト");
         setTimeout(() => {
           router.push("/");
         }, 1500); // アラートが表示された後にリダイレクト
@@ -297,7 +255,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
       }
 
       // フィード一覧にいる場合は、この投稿のみを非表示にする
-      console.log("投稿を非表示にします");
       setIsDeleted(true);
     } catch (error) {
       console.error("Error deleting post:", error);
@@ -307,31 +264,21 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     }
   };
 
-  // デバッグ出力 - 返信セクション表示条件
+  // 返信セクション表示条件
   const shouldShowReplySection = showReplies || isDetail;
-  console.log("[PostCard] レンダリング時の状態:", {
-    postId: post.id,
-    isDetail,
-    showReplies,
-    shouldShowReplySection,
-    pathname: window.location.pathname,
-  });
 
   // コメント数を再取得する関数
   const refreshCommentCount = async () => {
     try {
       if (!post?.id) return;
 
-      console.log("[PostCard] コメント数再取得:", post.id);
       const response = await fetch(`/api/posts/${post.id}/replies/count`);
 
       if (!response.ok) {
-        console.error("コメント数再取得エラー:", response.statusText);
         return;
       }
 
       const data = await response.json();
-      console.log("[PostCard] コメント数取得成功:", data);
       setCommentCount(data.count || 0);
     } catch (error) {
       console.error("コメント数再取得エラー:", error);
@@ -343,15 +290,10 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
     open: boolean,
     commentAdded: boolean = false
   ) => {
-    console.log("[PostCard] 返信ダイアログ状態変更:", { open, commentAdded });
-
     // ダイアログが閉じられる場合（open = false）
     if (!open) {
       if (commentAdded) {
         // コメントが追加された場合は楽観的にUI更新
-        console.log(
-          "[PostCard] コメント追加確認 - 楽観的にカウントアップします"
-        );
         setCommentCount((prev) => prev + 1);
 
         // さらに詳細画面では返信セクションを表示
@@ -373,10 +315,6 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
 
   // コメント数の変更を処理するコールバック関数
   const handleReplyCountChange = (count: number) => {
-    console.log("[PostCard] コメント数更新:", {
-      前の数: commentCount,
-      新しい数: count,
-    });
     // 楽観的UI更新: 実際のコメント数を表示
     setCommentCount(count);
   };
@@ -569,30 +507,19 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                   )}
                 </div>
 
-                {/* 詳細ページでは常に返信セクションを表示する */}
-                {showReplies || isDetail ? (
+                {/* 返信セクション */}
+                {shouldShowReplySection && (
                   <motion.div
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <div className="mb-2 text-sm text-muted-foreground">
-                      {isDetail
-                        ? "詳細ページモード: 返信セクションを表示中"
-                        : "通常モード: ユーザーの操作で返信表示"}
-                    </div>
                     <ReplySection
                       postId={post.id}
                       onReplyCountChange={handleReplyCountChange}
                     />
                   </motion.div>
-                ) : (
-                  <div className="text-sm text-muted-foreground py-2">
-                    デバッグ情報: 返信セクション非表示 (isDetail:{" "}
-                    {isDetail ? "true" : "false"}, showReplies:{" "}
-                    {showReplies ? "true" : "false"})
-                  </div>
                 )}
               </div>
 
