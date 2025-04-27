@@ -35,6 +35,7 @@ import { useAlert } from "@/components/alert-dialog";
 import { CustomAlert } from "@/components/custom-alert";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 import { LikeButton } from "./like-button";
+import { CategoryChips } from "./category-chips";
 import eventEmitter, { EVENTS } from "@/lib/utils/event-emitter";
 
 interface PostCardProps {
@@ -523,6 +524,18 @@ export function PostCard({ post, isDetail, onLikeStateChange }: PostCardProps) {
                     <span>{commentCount}</span>
                   </Button>
                 </div>
+
+                {/* カテゴリー表示 */}
+                {post.categoryIds && post.categoryIds.length > 0 && (
+                  <div className="mb-4">
+                    <CategoryChips
+                      categoryIds={post.categoryIds}
+                      variant="secondary"
+                      className="mb-2"
+                      limit={3}
+                    />
+                  </div>
+                )}
 
                 {/* EXIF情報をまとめて表示 */}
                 <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
